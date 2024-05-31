@@ -99,6 +99,53 @@ server.post("/loginadmin", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
+// Get all admins
+server.get("/admins", async (req, res) => {
+  try {
+    const admins = await RegisteradminModal.find({});
+    res.json(admins);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+
+// Get admin by ID
+server.get("/admins/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const admin = await RegisteradminModal.findById(id);
+    if (admin) {
+      res.json(admin);
+    } else {
+      res.status(404).json({ status: "admin not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+
+// Delete admin by ID
+server.delete("/admins/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const admin = await RegisteradminModal.findByIdAndDelete(id);
+    if (admin) {
+      res.json({ status: "admin deleted successfully", admin });
+    } else {
+      res.status(404).json({ status: "admin not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+
+
+
+
+
 
 //Tasker Section
 // Tasker Register//
@@ -187,6 +234,47 @@ server.post("/logintasker", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
+// Get all taskers
+server.get("/taskers", async (req, res) => {
+  try {
+    const taskers = await RegistertaskerModal.find({});
+    res.json(taskers);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+// Get tasker by ID
+server.get("/taskers/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const tasker = await RegistertaskerModal.findById(id);
+    if (tasker) {
+      res.json(tasker);
+    } else {
+      res.status(404).json({ status: "tasker not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+// Delete tasker by ID
+server.delete("/taskers/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const tasker = await RegistertaskerModal.findByIdAndDelete(id);
+    if (tasker) {
+      res.json({ status: "tasker deleted successfully", tasker });
+    } else {
+      res.status(404).json({ status: "tasker not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+
 
 //Service Section For Tasker
 // Create Service Tasker populate
@@ -385,6 +473,48 @@ server.post("/loginclient", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
+// Get all clients
+server.get("/clients", async (req, res) => {
+  try {
+    const clients = await RegisterclientModal.find({});
+    res.json(clients);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+// Get client by ID
+server.get("/clients/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const client = await RegisterclientModal.findById(id);
+    if (client) {
+      res.json(client);
+    } else {
+      res.status(404).json({ status: "client not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+// Delete client by ID
+server.delete("/clients/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const client = await RegisterclientModal.findByIdAndDelete(id);
+    if (client) {
+      res.json({ status: "client deleted successfully", client });
+    } else {
+      res.status(404).json({ status: "client not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+
+
 
 //SERVER
 //server running
