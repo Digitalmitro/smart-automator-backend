@@ -326,6 +326,38 @@ server.post("/service", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+//get all services
+server.get("/service", async (req, res) => {
+  try {
+    // Retrieve all service records from the database
+    const services = await TaskerserviceModal.find();
+
+    // Send the retrieved records as a response
+    res.status(200).json(services);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+//get by ID
+server.get("/service/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Retrieve the service record by ID from the database
+    const service = await TaskerserviceModal.findById(id);
+
+    if (!service) {
+      return res.status(404).send("Service not found");
+    }
+
+    // Send the retrieved record as a response
+    res.status(200).json(service);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
 //Populate service for takser
 server.get("/service/:id", async (req, res) => {
   const { id } = req.params;
@@ -379,7 +411,7 @@ server.put("/service/:id", async (req, res) => {
       console.log(error);
       res.status(500).send("Internal Server Error");
     }
-  });
+});
 
 
 
