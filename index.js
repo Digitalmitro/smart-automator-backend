@@ -8,6 +8,7 @@ const {
 const { RegisterclientModal } = require("./models/ClientModel/RegisterClient");
 const { RegistertaskerModal } = require("./models/TaskerModel/RegisterTasker");
 const { TaskerserviceModal } = require("./models/TaskerModel/TaskerService");
+const {OrderModal} = require("./models/ClientModel/OrderList")
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const server = express();
@@ -545,8 +546,80 @@ server.delete("/clients/:id", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
+//Order Section For Client
 
+server.post("/order", async (req, res) => {
+  const {
+    image,
+    phone,
+    userName,
+    description,
+    vehicle,
+    serviceCategory,
+    location,
+    pricePerHour,
+    totaltask,
+    review,
+    user_id,
+  } = req.body;
 
+  try {
+    // Create a new instance of AdvisorpackageModel
+    const newPackage = new OrderModal({
+      image,
+      phone,
+      userName,
+      description,
+      vehicle,
+      serviceCategory,
+      location,
+      pricePerHour,
+      totaltask,
+      review,
+      user_id,
+    });
+
+    // Save the package to the database
+    await newPackage.save();
+
+    // Update the user's packages array
+    await RegisterclientModal.findByIdAndUpdate(
+      user_id,
+      { $push: { order: newPackage._id } },
+      { new: true }
+    );
+
+    // Send a success response
+    res.send("Service added");
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+//get all services
+server.get("/order", async (req, res) => {
+  try {
+    // Retrieve all service records from the database
+    const services = await OrderModal.find();
+
+    // Send the retrieved records as a response
+    res.status(200).json(services);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+//Populate service for takser
+server.get("/order/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = await RegisterclientModal.findById(id).populate("order");
+    res.send(data);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
 
 //SERVER
 //server running

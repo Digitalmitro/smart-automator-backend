@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const taskerserviceSchema = mongoose.Schema({
+const orderSchema = mongoose.Schema({
   image: {
     type: String,
   },
@@ -39,11 +39,11 @@ const taskerserviceSchema = mongoose.Schema({
   ],
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "register tasker",
+    ref: "register client",
     required: true,
   },
 });
 
-const TaskerserviceModal = mongoose.model("service", taskerserviceSchema);
+const OrderModal = mongoose.model("order", orderSchema);
 
-module.exports = { TaskerserviceModal };
+module.exports = { OrderModal };

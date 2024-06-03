@@ -25,6 +25,7 @@ const registerclientSchema = mongoose.Schema({
   zip: {
     type: Number,
   },
+  order: [{ type: mongoose.Schema.Types.ObjectId, ref: "order" }],
 });
 
 const RegisterclientModal = mongoose.model(
