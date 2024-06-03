@@ -590,7 +590,7 @@ server.post("/order", async (req, res) => {
     );
 
     // Send a success response
-    res.send("Service added");
+    res.send("Order added");
   } catch (error) {
     console.log(error);
     res.status(500).send("Internal Server Error");
