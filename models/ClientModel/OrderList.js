@@ -26,6 +26,9 @@ const orderSchema = mongoose.Schema({
   location: {
     type: String,
   },
+  orderTime: {
+    type: String,
+  },
   pricePerHour: {
     type: Number,
   },
