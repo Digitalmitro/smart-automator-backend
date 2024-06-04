@@ -8,7 +8,7 @@ const {
 const { RegisterclientModal } = require("./models/ClientModel/RegisterClient");
 const { RegistertaskerModal } = require("./models/TaskerModel/RegisterTasker");
 const { TaskerserviceModal } = require("./models/TaskerModel/TaskerService");
-const {OrderModal} = require("./models/ClientModel/OrderList")
+const { OrderModal } = require("./models/ClientModel/OrderList");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const server = express();
@@ -143,11 +143,6 @@ server.delete("/admins/:id", async (req, res) => {
   }
 });
 
-
-
-
-
-
 //Tasker Section
 // Tasker Register//
 server.post("/registertasker", async (req, res) => {
@@ -276,7 +271,6 @@ server.delete("/taskers/:id", async (req, res) => {
   }
 });
 
-
 //Service Section For Tasker
 // Create Service Tasker populate
 server.post("/service", async (req, res) => {
@@ -383,41 +377,40 @@ server.delete("/service/:id", async (req, res) => {
 });
 // Update services by id
 server.put("/service/:id", async (req, res) => {
-    const { id } = req.params;
-    const updateData = req.body; // Assuming the request body contains the data to update
-  
-    try {
-      const existingData = await TaskerserviceModal.findById(id);
-      if (!existingData) {
-        return res.status(404).send("Product not found");
-      }
-  
-      // If there are new reviews to add, append them to the existing reviews
-      if (updateData.review) {
-        existingData.review = existingData.review.concat(updateData.review);
-        delete updateData.review; // Remove review from updateData to avoid replacing it
-      }
-  
-      // Update the document with the new data excluding the review field
-      const updatedData = await TaskerserviceModal.findByIdAndUpdate(id, updateData, { new: true });
-  
-      // Save the document with the appended reviews if any
-      if (existingData.review) {
-        updatedData.review = existingData.review;
-        await updatedData.save();
-      }
-  
-      res.send(updatedData);
-    } catch (error) {
-      console.log(error);
-      res.status(500).send("Internal Server Error");
+  const { id } = req.params;
+  const updateData = req.body; // Assuming the request body contains the data to update
+
+  try {
+    const existingData = await TaskerserviceModal.findById(id);
+    if (!existingData) {
+      return res.status(404).send("Product not found");
     }
+
+    // If there are new reviews to add, append them to the existing reviews
+    if (updateData.review) {
+      existingData.review = existingData.review.concat(updateData.review);
+      delete updateData.review; // Remove review from updateData to avoid replacing it
+    }
+
+    // Update the document with the new data excluding the review field
+    const updatedData = await TaskerserviceModal.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    );
+
+    // Save the document with the appended reviews if any
+    if (existingData.review) {
+      updatedData.review = existingData.review;
+      await updatedData.save();
+    }
+
+    res.send(updatedData);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
 });
-
-
-
-
-
 
 //client Section
 // client Register//
@@ -546,8 +539,55 @@ server.delete("/clients/:id", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
-//Order Section For Client
 
+//Update Client Detail
+server.put("/updateclient", async (req, res) => {
+  const { firstName, lastName, phone, zip, oldPassword, newPassword, user_id } =
+    req.body;
+
+  try {
+    // Find user by ID
+    const user = await RegisterclientModal.findById(user_id);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Compare old password
+    const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!passwordMatch) {
+      return res.status(400).json({ error: "Old password is incorrect" });
+    }
+
+    // Hash the new password if provided
+    let hashedPassword = user.password; // default to old hashed password
+    if (newPassword) {
+      hashedPassword = await bcrypt.hash(newPassword, 10);
+    }
+
+    // Update user details
+    const updatedUser = await RegisterclientModal.findByIdAndUpdate(
+      user_id,
+      { firstName, lastName, phone, zip, password: hashedPassword },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Optionally, you can return the updated user as JSON
+    res.json({
+      message: "Updated user details successfully",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+//Order Section For Client
 server.post("/order", async (req, res) => {
   const {
     image,
