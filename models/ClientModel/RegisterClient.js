@@ -26,6 +26,8 @@ const registerclientSchema = mongoose.Schema({
     type: Number,
   },
   order: [{ type: mongoose.Schema.Types.ObjectId, ref: "order" }],
+  homeAddress: [{ type: mongoose.Schema.Types.ObjectId, ref: "homeAddress" }],
+  workAddress: [{ type: mongoose.Schema.Types.ObjectId, ref: "workAddress" }],
 });
 
 const RegisterclientModal = mongoose.model(

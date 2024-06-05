@@ -1,5 +1,7 @@
 const express = require("express");
-
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const bcrypt = require("bcrypt");
 const { connect } = require("./config/db");
 const {
@@ -8,6 +10,9 @@ const {
 const { RegisterclientModal } = require("./models/ClientModel/RegisterClient");
 const { RegistertaskerModal } = require("./models/TaskerModel/RegisterTasker");
 const { TaskerserviceModal } = require("./models/TaskerModel/TaskerService");
+
+const { HomeAddressModal } = require("./models/ClientModel/HomeAddress");
+const { WorkAddressModal } = require("./models/ClientModel/WorkAddress");
 const { OrderModal } = require("./models/ClientModel/OrderList");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
@@ -16,9 +21,38 @@ const server = express();
 server.use(cors());
 server.use(express.json());
 
-//welcome message
-server.get("/", (req, res) => {
-  res.send("welcome");
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname)); // Append the extension
+  },
+});
+
+// Initialize multer with the storage configuration
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|gif|mp4|mkv/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Only image and video files are allowed!"));
+    }
+  },
 });
 
 //ADMIN Section
@@ -273,9 +307,8 @@ server.delete("/taskers/:id", async (req, res) => {
 
 //Service Section For Tasker
 // Create Service Tasker populate
-server.post("/service", async (req, res) => {
+server.post("/service", upload.single("image"), async (req, res) => {
   const {
-    image,
     phone,
     userName,
     description,
@@ -289,9 +322,8 @@ server.post("/service", async (req, res) => {
   } = req.body;
 
   try {
-    // Create a new instance of AdvisorpackageModel
     const newPackage = new TaskerserviceModal({
-      image,
+      image: req.file.filename, // Update to use req.file.filename
       phone,
       userName,
       description,
@@ -304,23 +336,25 @@ server.post("/service", async (req, res) => {
       user_id,
     });
 
-    // Save the package to the database
     await newPackage.save();
 
-    // Update the user's packages array
+    // Assuming RegistertaskerModal is defined elsewhere in your code
     await RegistertaskerModal.findByIdAndUpdate(
       user_id,
       { $push: { service: newPackage._id } },
       { new: true }
     );
 
-    // Send a success response
     res.send("Service added");
   } catch (error) {
     console.log(error);
     res.status(500).send("Internal Server Error");
   }
 });
+// Serve static files from the 'uploads' directory
+server.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+server.use(express.json());
 //get all services
 server.get("/service", async (req, res) => {
   try {
@@ -540,10 +574,17 @@ server.delete("/clients/:id", async (req, res) => {
   }
 });
 
-//Update Client Detail
 server.put("/updateclient", async (req, res) => {
-  const { firstName, lastName, phone, zip, oldPassword, newPassword, user_id } =
-    req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    zip,
+    oldPassword,
+    newPassword,
+    user_id,
+  } = req.body;
 
   try {
     // Find user by ID
@@ -551,6 +592,14 @@ server.put("/updateclient", async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify email
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    if (email !== user.email) {
+      return res.status(400).json({ error: "Email must be the same" });
     }
 
     // Compare old password
@@ -568,7 +617,7 @@ server.put("/updateclient", async (req, res) => {
     // Update user details
     const updatedUser = await RegisterclientModal.findByIdAndUpdate(
       user_id,
-      { firstName, lastName, phone, zip, password: hashedPassword },
+      { firstName, lastName, email, phone, zip, password: hashedPassword },
       { new: true }
     );
 
@@ -576,14 +625,142 @@ server.put("/updateclient", async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Optionally, you can return the updated user as JSON
+    // Create JWT token
+    const token = jwt.sign(
+      {
+        _id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        zip: updatedUser.zip,
+      },
+      "Tirtho"
+    );
+
+    // Return the updated user and token
     res.json({
-      message: "Updated user details successfully",
-      data: updatedUser,
+      status: "Update successful",
+      token: token,
+      user: {
+        _id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        zip: updatedUser.zip,
+        // Add other user details if needed
+      },
     });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+server.post("/homeAddress", async (req, res) => {
+  const { address1, address2, city, state, zip, addressType, user_id } =
+    req.body;
+
+  try {
+    // Find the existing homecms document for the given user_id
+    const existingPackage = await HomeAddressModal.findOne({ user_id });
+
+    if (!existingPackage) {
+      // If no existing document, create a new one
+      const newPackage = new HomeAddressModal({
+        address1,
+        address2,
+        city,
+        state,
+        zip,
+        addressType,
+        user_id,
+      });
+
+      // Save the new document to the database
+      await newPackage.save();
+
+      // Update the user's details array
+      await RegisterclientModal.findByIdAndUpdate(
+        user_id,
+        { $push: { homeAddress: newPackage._id } },
+        { new: true }
+      );
+    } else {
+      // If an existing document is found, update its fields
+      await HomeAddressModal.findOneAndUpdate(
+        { user_id },
+        {
+          address1,
+          address2,
+          city,
+          state,
+          zip,
+          addressType,
+        },
+        { new: true }
+      );
+    }
+
+    // Send a success response
+    res.send("Home Address added/updated successfully");
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+server.post("/workAddress", async (req, res) => {
+  const { address1, address2, city, state, zip, addressType, user_id } =
+    req.body;
+
+  try {
+    // Find the existing homecms document for the given user_id
+    const existingPackage = await WorkAddressModal.findOne({ user_id });
+
+    if (!existingPackage) {
+      // If no existing document, create a new one
+      const newPackage = new WorkAddressModal({
+        address1,
+        address2,
+        city,
+        state,
+        zip,
+        addressType,
+        user_id,
+      });
+
+      // Save the new document to the database
+      await newPackage.save();
+
+      // Update the user's details array
+      await RegisterclientModal.findByIdAndUpdate(
+        user_id,
+        { $push: { workAddress: newPackage._id } },
+        { new: true }
+      );
+    } else {
+      // If an existing document is found, update its fields
+      await WorkAddressModal.findOneAndUpdate(
+        { user_id },
+        {
+          address1,
+          address2,
+          city,
+          state,
+          zip,
+          addressType,
+        },
+        { new: true }
+      );
+    }
+
+    // Send a success response
+    res.send("work Address added/updated successfully");
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
   }
 });
 
