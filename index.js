@@ -711,6 +711,52 @@ server.post("/homeAddress", async (req, res) => {
   }
 });
 
+
+server.get("/homeAddress/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = await RegisterclientModal.findById(id).populate("homeAddress");
+    res.send({
+      message: "get Address Data success",
+      data: data
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+server.delete("/homeAddress/:id", async (req, res) => {
+  const addressId = req.params.id;
+
+  try {
+    // Address exists, proceed with deletion
+    await HomeAddressModal.findOneAndDelete(addressId );
+
+    // Send a success response
+    res.send("Home Address deleted successfully");
+  } catch (error) {
+    console.error("Error deleting home address:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+server.delete("/workAddress/:id", async (req, res) => {
+  const addressId = req.params.id;
+
+  try {
+    // Address exists, proceed with deletion
+    await WorkAddressModal.findOneAndDelete(addressId );
+
+    // Send a success response
+    res.send("work Address deleted successfully");
+  } catch (error) {
+    console.error("Error deleting work address:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+
 server.post("/workAddress", async (req, res) => {
   const { address1, address2, city, state, zip, addressType, user_id } =
     req.body;
@@ -760,6 +806,41 @@ server.post("/workAddress", async (req, res) => {
     res.send("work Address added/updated successfully");
   } catch (error) {
     console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+server.get("/workAddress/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = await RegisterclientModal.findById(id).populate("workAddress");
+    res.send({
+      message: "get work Address Data success",
+      data: data
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+server.delete("/workAddress/:id", async (req, res) => {
+  const addressId = req.params.id;
+
+  try {
+    // Check if the home address exists
+    const existingAddress = await WorkAddressModal.findOne({ user_id: addressId });
+    if (!existingAddress) {
+      // Address not found
+      return res.status(404).send("Home Address not found");
+    }
+
+    // Address exists, proceed with deletion
+    await WorkAddressModal.findOneAndDelete({ user_id: addressId });
+
+    // Send a success response
+    res.send("Home Address deleted successfully");
+  } catch (error) {
+    console.error("Error deleting home address:", error);
     res.status(500).send("Internal Server Error");
   }
 });
