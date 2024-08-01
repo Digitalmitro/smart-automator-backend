@@ -55,6 +55,16 @@ const upload = multer({
   },
 });
 
+// TEST //
+server.get("/", async (req, res) => {
+  try {
+    return res.status(200).json({message: "Smart Automator API", success: true})
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "internal server error" });
+  }
+});
+
 //ADMIN Section
 // ADMIN  Register//
 server.post("/registeradmin", async (req, res) => {
