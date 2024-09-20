@@ -941,7 +941,9 @@ server.get("/orders/:id", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
+server.get('/', (req, res) => {
+  res.send('API is running'); // or any appropriate message
+});
 
 
 //SERVER
