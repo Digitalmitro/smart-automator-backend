@@ -1,7 +1,13 @@
 const mongoose = require("mongoose");
 
-const connect = mongoose.connect(
-  `mongodb+srv://Tirtho:Tirtho@cluster0.4etk1hs.mongodb.net/Smart-Automator?retryWrites=true&w=majority`
-);
+module.exports = async function connection (){
+  try{
+    await mongoose.connect(process.env.MONGO_URI).then(() => {
+      console.log("Connection Successful.");
+    })
+  }catch(e){
+    console.log("Connection UnSuccessful.");
+    console.log(e);
+  }
+}
 
-module.exports = { connect };

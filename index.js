@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -16,10 +17,17 @@ const { WorkAddressModal } = require("./models/ClientModel/WorkAddress");
 const { OrderModal } = require("./models/ClientModel/OrderList");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
+const userAuth = require("./middlewares/userAuth");
 const server = express();
 //to avoid cors error//
+const connection = require("./config/db");
 server.use(cors());
 server.use(express.json());
+
+const Port = process.env.port || 3500;
+
+
+connection();
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "uploads");
@@ -58,7 +66,9 @@ const upload = multer({
 // TEST //
 server.get("/", async (req, res) => {
   try {
-    return res.status(200).json({message: "Smart Automator API", success: true})
+    return res
+      .status(200)
+      .json({ message: "Smart Automator API", success: true });
   } catch (error) {
     console.error(error);
     res.status(500).json({ status: "internal server error" });
@@ -189,83 +199,167 @@ server.delete("/admins/:id", async (req, res) => {
 
 //Tasker Section
 // Tasker Register//
+// server.post("/registertasker", async (req, res) => {
+//   const { firstName, lastName, email, phone, password, zip } = req.body;
+
+//   try {
+//     // Check if the email already exists in the database
+//     const existingAdvisor = await RegistertaskerModal.findOne({ email });
+
+//     if (existingAdvisor) {
+//       // If email already exists, send an error response
+//       res.status(400).send("Email already exists");
+//     } else {
+//       // Hash the password
+//       bcrypt.hash(password, 5, async (err, hash) => {
+//         if (err) {
+//           console.log(err);
+//         } else {
+//           // Create a new instance of RegisteradvisorModal with the hashed password
+//           const newData = new RegistertaskerModal({
+//             firstName,
+//             lastName,
+//             email,
+//             phone,
+//             password: hash,
+//             zip,
+//           });
+
+//           // Save the advisor data to the database
+//           await newData.save();
+
+//           // Send a success response
+//           res.send("Registered");
+//         }
+//       });
+//     }
+//   } catch (error) {
+//     // Handle other errors, such as missing details in the request
+//     console.log(error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
 server.post("/registertasker", async (req, res) => {
-  const { firstName, lastName, email, phone, password, zip } = req.body;
+  const { email, password, phone, firstname, lastname, zip } = req.body;
 
   try {
     // Check if the email already exists in the database
-    const existingAdvisor = await RegistertaskerModal.findOne({ email });
+    const existingAdvisor = await RegistertaskerModal.findOne({
+      $or: [{ email: email }, { phone: phone }],
+    });
+
+    const registerDate = new Date();
 
     if (existingAdvisor) {
       // If email already exists, send an error response
-      res.status(400).send("Email already exists");
-    } else {
-      // Hash the password
-      bcrypt.hash(password, 5, async (err, hash) => {
-        if (err) {
-          console.log(err);
-        } else {
-          // Create a new instance of RegisteradvisorModal with the hashed password
-          const newData = new RegistertaskerModal({
-            firstName,
-            lastName,
-            email,
-            phone,
-            password: hash,
-            zip,
-          });
-
-          // Save the advisor data to the database
-          await newData.save();
-
-          // Send a success response
-          res.send("Registered");
-        }
-      });
+      return res.status(400).send("User already exists");
     }
+    // Create a new instance of RegisteradvisorModal with the hashed password
+    const newData = new RegistertaskerModal({
+      firstName: firstname,
+      lastName: lastname,
+      phone,
+      password,
+      email,
+      zip,
+    });
+
+    // Save the advisor data to the database
+    const registered = await newData.save();
+
+    const token = await registered.generateAuthToken();
+
+    registered.password = undefined;
+
+    // Send a success response
+    return res.status(200).json({
+      message: "Registered successfully",
+      token: token,
+      user: registered,
+    });
   } catch (error) {
     // Handle other errors, such as missing details in the request
     console.log(error);
     res.status(500).send("Internal Server Error");
   }
 });
-//Tasker Login
-server.post("/logintasker", async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await RegistertaskerModal.findOne({ email });
-    if (user) {
-      bcrypt.compare(password, user.password, (err, result) => {
-        if (result) {
-          const token = jwt.sign(
-            {
-              _id: user._id,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              email: user.email,
-              phone: user.phone,
-              zip: user.zip,
-            },
-            "Tirtho"
-          );
-          res.json({
-            status: "login successful",
-            token: token,
-            user: {
-              _id: user._id,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              email: user.email,
-              phone: user.phone,
-              zip: user.zip,
 
-              // Add other user details if needed
-            },
-          });
-        } else {
-          res.status(401).json({ status: "wrong entry" });
-        }
-      });
+//Tasker Login
+// server.post("/logintasker", async (req, res) => {
+//   const { email, password } = req.body;
+//   try {
+//     const user = await RegistertaskerModal.findOne({ email });
+//     if (user) {
+//       bcrypt.compare(password, user.password, (err, result) => {
+//         if (result) {
+//           const token = jwt.sign(
+//             {
+//               _id: user._id,
+//               firstName: user.firstName,
+//               lastName: user.lastName,
+//               email: user.email,
+//               phone: user.phone,
+//               zip: user.zip,
+//             },
+//             "Tirtho"
+//           );
+//           res.json({
+//             status: "login successful",
+//             token: token,
+//             user: {
+//               _id: user._id,
+//               firstName: user.firstName,
+//               lastName: user.lastName,
+//               email: user.email,
+//               phone: user.phone,
+//               zip: user.zip,
+
+//               // Add other user details if needed
+//             },
+//           });
+//         } else {
+//           res.status(401).json({ status: "wrong entry" });
+//         }
+//       });
+//     } else {
+//       res.status(404).json({ status: "user not found" });
+//     }
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ status: "internal server error" });
+//   }
+// });
+
+server.post("/logintasker", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res
+        .status(422)
+        .json({ message: "Please fill all the fields.", success: false });
+    }
+
+    const clientFound = await RegistertaskerModal.findOne({ email });
+
+    if (clientFound) {
+      const passCheck = await bcrypt.compare(password, clientFound.password);
+      const token = await clientFound.generateAuthToken();
+
+      clientFound.password = undefined;
+
+      if (passCheck) {
+        res.status(200).json({
+          status: "login successful",
+          token: token,
+          user: clientFound,
+        });
+      } else {
+        res
+          .status(401)
+          .json({ message: "Invalid login credentials", success: false });
+      }
     } else {
       res.status(404).json({ status: "user not found" });
     }
@@ -274,6 +368,17 @@ server.post("/logintasker", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
+
+server.get("/logout-tasker", userAuth, async (req, res) => {
+  try {
+    res
+      .status(200)
+      .json({ message: "logged out successfully!", success: true });
+  } catch (e) {
+    res.status(500).send(e);
+  }
+});
+
 // Get all taskers
 server.get("/taskers", async (req, res) => {
   try {
@@ -458,83 +563,167 @@ server.put("/service/:id", async (req, res) => {
 
 //client Section
 // client Register//
+// server.post("/registerclient", async (req, res) => {
+//   const { firstName, lastName, email, phone, password, zip } = req.body;
+
+//   try {
+//     // Check if the email already exists in the database
+//     const existingAdvisor = await RegisterclientModal.findOne({ email });
+
+//     if (existingAdvisor) {
+//       // If email already exists, send an error response
+//       res.status(400).send("Email already exists");
+//     } else {
+//       // Hash the password
+//       bcrypt.hash(password, 5, async (err, hash) => {
+//         if (err) {
+//           console.log(err);
+//         } else {
+//           // Create a new instance of RegisteradvisorModal with the hashed password
+//           const newData = new RegisterclientModal({
+//             firstName,
+//             lastName,
+//             email,
+//             phone,
+//             password: hash,
+//             zip,
+//           });
+
+//           // Save the advisor data to the database
+//           await newData.save();
+
+//           // Send a success response
+//           res.send("Registered");
+//         }
+//       });
+//     }
+//   } catch (error) {
+//     // Handle other errors, such as missing details in the request
+//     console.log(error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
 server.post("/registerclient", async (req, res) => {
-  const { firstName, lastName, email, phone, password, zip } = req.body;
+  const { email, password, phone, firstName, lastName, zip } = req.body;
 
   try {
     // Check if the email already exists in the database
-    const existingAdvisor = await RegisterclientModal.findOne({ email });
+    const existingAdvisor = await RegisterclientModal.findOne({
+      $or: [{ email: email }, { phone: phone }],
+    });
+
+    const registerDate = new Date();
 
     if (existingAdvisor) {
       // If email already exists, send an error response
-      res.status(400).send("Email already exists");
-    } else {
-      // Hash the password
-      bcrypt.hash(password, 5, async (err, hash) => {
-        if (err) {
-          console.log(err);
-        } else {
-          // Create a new instance of RegisteradvisorModal with the hashed password
-          const newData = new RegisterclientModal({
-            firstName,
-            lastName,
-            email,
-            phone,
-            password: hash,
-            zip,
-          });
-
-          // Save the advisor data to the database
-          await newData.save();
-
-          // Send a success response
-          res.send("Registered");
-        }
-      });
+      return res.status(400).send("User already exists");
     }
+    // Create a new instance of RegisteradvisorModal with the hashed password
+    const newData = new RegisterclientModal({
+      firstName,
+      lastName,
+      phone,
+      password,
+      email,
+      zip,
+    });
+
+    // Save the advisor data to the database
+    const registered = await newData.save();
+
+    const token = await registered.generateAuthToken();
+
+    registered.password = undefined;
+
+    // Send a success response
+    return res.status(200).json({
+      message: "Registered successfully",
+      token: token,
+      user: registered,
+    });
   } catch (error) {
     // Handle other errors, such as missing details in the request
     console.log(error);
     res.status(500).send("Internal Server Error");
   }
 });
-//client Login
-server.post("/loginclient", async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await RegisterclientModal.findOne({ email });
-    if (user) {
-      bcrypt.compare(password, user.password, (err, result) => {
-        if (result) {
-          const token = jwt.sign(
-            {
-              _id: user._id,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              email: user.email,
-              phone: user.phone,
-              zip: user.zip,
-            },
-            "Tirtho"
-          );
-          res.json({
-            status: "login successful",
-            token: token,
-            user: {
-              _id: user._id,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              email: user.email,
-              phone: user.phone,
-              zip: user.zip,
 
-              // Add other user details if needed
-            },
-          });
-        } else {
-          res.status(401).json({ status: "wrong entry" });
-        }
-      });
+//client Login
+// server.post("/loginclient", async (req, res) => {
+//   const { email, password } = req.body;
+//   try {
+//     const user = await RegisterclientModal.findOne({ email });
+//     if (user) {
+//       bcrypt.compare(password, user.password, (err, result) => {
+//         if (result) {
+//           const token = jwt.sign(
+//             {
+//               _id: user._id,
+//               firstName: user.firstName,
+//               lastName: user.lastName,
+//               email: user.email,
+//               phone: user.phone,
+//               zip: user.zip,
+//             },
+//             "Tirtho"
+//           );
+//           res.json({
+//             status: "login successful",
+//             token: token,
+//             user: {
+//               _id: user._id,
+//               firstName: user.firstName,
+//               lastName: user.lastName,
+//               email: user.email,
+//               phone: user.phone,
+//               zip: user.zip,
+
+//               // Add other user details if needed
+//             },
+//           });
+//         } else {
+//           res.status(401).json({ status: "wrong entry" });
+//         }
+//       });
+//     } else {
+//       res.status(404).json({ status: "user not found" });
+//     }
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ status: "internal server error" });
+//   }
+// });
+
+server.post("/loginclient", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res
+        .status(422)
+        .json({ message: "Please fill all the fields.", success: false });
+    }
+
+    const clientFound = await RegisterclientModal.findOne({ email });
+
+    if (clientFound) {
+      const passCheck = await bcrypt.compare(password, clientFound.password);
+      const token = await clientFound.generateAuthToken();
+
+      clientFound.password = undefined;
+
+      if (passCheck) {
+        res.status(200).json({
+          status: "login successful",
+          token: token,
+          user: clientFound,
+        });
+      } else {
+        res
+          .status(401)
+          .json({ message: "Invalid login credentials", success: false });
+      }
     } else {
       res.status(404).json({ status: "user not found" });
     }
@@ -543,6 +732,18 @@ server.post("/loginclient", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
+
+server.get("/logout-client", userAuth, async (req, res) => {
+  try {
+    res
+      .status(200)
+      .json({ message: "logged out successfully!", success: true });
+  } catch (e) {
+    res.status(500).send(e);
+  }
+});
+
+
 // Get all clients
 server.get("/clients", async (req, res) => {
   try {
@@ -721,14 +922,13 @@ server.post("/homeAddress", async (req, res) => {
   }
 });
 
-
 server.get("/homeAddress/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const data = await RegisterclientModal.findById(id).populate("homeAddress");
     res.send({
       message: "get Address Data success",
-      data: data
+      data: data,
     });
   } catch (error) {
     console.log(error);
@@ -741,7 +941,7 @@ server.delete("/homeAddress/:id", async (req, res) => {
 
   try {
     // Address exists, proceed with deletion
-    await HomeAddressModal.findOneAndDelete(addressId );
+    await HomeAddressModal.findOneAndDelete(addressId);
 
     // Send a success response
     res.send("Home Address deleted successfully");
@@ -756,7 +956,7 @@ server.delete("/workAddress/:id", async (req, res) => {
 
   try {
     // Address exists, proceed with deletion
-    await WorkAddressModal.findOneAndDelete(addressId );
+    await WorkAddressModal.findOneAndDelete(addressId);
 
     // Send a success response
     res.send("work Address deleted successfully");
@@ -765,7 +965,6 @@ server.delete("/workAddress/:id", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
 
 server.post("/workAddress", async (req, res) => {
   const { address1, address2, city, state, zip, addressType, user_id } =
@@ -825,7 +1024,7 @@ server.get("/workAddress/:id", async (req, res) => {
     const data = await RegisterclientModal.findById(id).populate("workAddress");
     res.send({
       message: "get work Address Data success",
-      data: data
+      data: data,
     });
   } catch (error) {
     console.log(error);
@@ -838,7 +1037,9 @@ server.delete("/workAddress/:id", async (req, res) => {
 
   try {
     // Check if the home address exists
-    const existingAddress = await WorkAddressModal.findOne({ user_id: addressId });
+    const existingAddress = await WorkAddressModal.findOne({
+      user_id: addressId,
+    });
     if (!existingAddress) {
       // Address not found
       return res.status(404).send("Home Address not found");
@@ -933,12 +1134,10 @@ server.get("/order/:id", async (req, res) => {
 
 //SERVER
 //server running
-server.listen(3500, async () => {
+server.listen(Port, async () => {
   try {
-    await connect;
-    console.log("mongoDb connected");
+    console.log(`server running at port ${Port}`);
   } catch (error) {
     console.log(error);
   }
-  console.log(`server running at port 3500`);
 });
