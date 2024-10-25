@@ -26,7 +26,6 @@ server.use(express.json());
 
 const Port = process.env.port || 3500;
 
-
 connection();
 
 // Create uploads directory if it doesn't exist
@@ -733,6 +732,30 @@ server.post("/loginclient", async (req, res) => {
   }
 });
 
+server.get("/get-client", userAuth, async (req, res) => {
+  try {
+    const user = req.rootUser;
+
+    if (!user) {
+      return res.status(400).json({
+        message: "User not found",
+        success: false,
+      });
+    }
+
+    user.password = undefined;
+
+    return res.status(200).json({
+      message: "User fetched successfully !",
+      success: true,
+      user,
+    });
+  } catch (e) {
+    console.log(e);
+    res.status(500).send(e);
+  }
+});
+
 server.get("/logout-client", userAuth, async (req, res) => {
   try {
     res
@@ -742,7 +765,6 @@ server.get("/logout-client", userAuth, async (req, res) => {
     res.status(500).send(e);
   }
 });
-
 
 // Get all clients
 server.get("/clients", async (req, res) => {

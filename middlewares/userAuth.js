@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const { RegisterclientModal } = require("../models/TaskerModel/RegisterTasker");
+const { RegisterclientModal } = require("../models/ClientModel/RegisterClient");
 
 
 const userAuth = async (req, res, next) => {
@@ -9,7 +9,7 @@ const userAuth = async (req, res, next) => {
 
     console.log(verifyToken);
 
-    const rootUser = await RegisterclientModal.findOne({ _id: verifyToken._id });
+    const rootUser = await RegisterclientModal.findOne({ _id: verifyToken._id }).select("-__v");
 
     console.log(rootUser);
 
