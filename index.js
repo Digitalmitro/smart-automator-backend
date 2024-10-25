@@ -807,50 +807,151 @@ server.delete("/clients/:id", async (req, res) => {
   }
 });
 
-server.put("/updateclient", async (req, res) => {
+// server.put("/updateclient", async (req, res) => {
+//   const {
+//     firstName,
+//     lastName,
+//     email,
+//     phone,
+//     zip,
+//     oldPassword,
+//     newPassword,
+//     user_id,
+//   } = req.body;
+
+//   try {
+//     // Find user by ID
+//     const user = await RegisterclientModal.findById(user_id);
+
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // Verify email
+//     if (!email) {
+//       return res.status(400).json({ error: "Email is required" });
+//     }
+//     if (email !== user.email) {
+//       return res.status(400).json({ error: "Email must be the same" });
+//     }
+
+//     // Compare old password
+//     const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+//     if (!passwordMatch) {
+//       return res.status(400).json({ error: "Old password is incorrect" });
+//     }
+
+//     // Hash the new password if provided
+//     let hashedPassword = user.password; // default to old hashed password
+//     if (newPassword) {
+//       hashedPassword = await bcrypt.hash(newPassword, 10);
+//     }
+
+//     // Update user details
+//     const updatedUser = await RegisterclientModal.findByIdAndUpdate(
+//       user_id,
+//       { firstName, lastName, email, phone, zip, password: hashedPassword },
+//       { new: true }
+//     );
+
+//     if (!updatedUser) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // Create JWT token
+//     const token = jwt.sign(
+//       {
+//         _id: updatedUser._id,
+//         firstName: updatedUser.firstName,
+//         lastName: updatedUser.lastName,
+//         email: updatedUser.email,
+//         phone: updatedUser.phone,
+//         zip: updatedUser.zip,
+//       },
+//       "Tirtho"
+//     );
+
+//     // Return the updated user and token
+//     res.json({
+//       status: "Update successful",
+//       token: token,
+//       user: {
+//         _id: updatedUser._id,
+//         firstName: updatedUser.firstName,
+//         lastName: updatedUser.lastName,
+//         email: updatedUser.email,
+//         phone: updatedUser.phone,
+//         zip: updatedUser.zip,
+//         // Add other user details if needed
+//       },
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
+
+server.put("/updateclient", userAuth, async (req, res) => {
   const {
     firstName,
     lastName,
-    email,
+    displayName,
     phone,
     zip,
+    email,
     oldPassword,
     newPassword,
-    user_id,
   } = req.body;
 
   try {
     // Find user by ID
-    const user = await RegisterclientModal.findById(user_id);
+    const user = await RegisterclientModal.findById(req.rootUser._id);
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Verify email
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-    if (email !== user.email) {
-      return res.status(400).json({ error: "Email must be the same" });
-    }
+    let updateData = {
+      firstName,
+      lastName,
+      displayName,
+      email,
+      phone,
+      zip,
+    };
 
-    // Compare old password
-    const passwordMatch = await bcrypt.compare(oldPassword, user.password);
-    if (!passwordMatch) {
-      return res.status(400).json({ error: "Old password is incorrect" });
-    }
+    if (oldPassword && newPassword) {
+      // Compare old password
+      const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!passwordMatch) {
+        return res.status(400).json({ error: "Old password is incorrect" });
+      }
 
-    // Hash the new password if provided
-    let hashedPassword = user.password; // default to old hashed password
-    if (newPassword) {
-      hashedPassword = await bcrypt.hash(newPassword, 10);
+      // Hash the new password if provided
+      let hashedPassword = user.password; // default to old hashed password
+      if (newPassword) {
+        hashedPassword = await bcrypt.hash(newPassword, 10);
+      }
+
+      updateData = {
+        firstName,
+        lastName,
+        displayName,
+        email,
+        password: hashedPassword,
+        phone,
+        zipczipode,
+      };
+    } else if ((oldPassword && !newPassword) || (newPassword && !oldPassword)) {
+      return res
+        .status(400)
+        .json({ error: "Both old and new passwords are required." });
     }
 
     // Update user details
     const updatedUser = await RegisterclientModal.findByIdAndUpdate(
-      user_id,
-      { firstName, lastName, email, phone, zip, password: hashedPassword },
+      req.rootUser._id,
+      updateData,
       { new: true }
     );
 
@@ -858,33 +959,8 @@ server.put("/updateclient", async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Create JWT token
-    const token = jwt.sign(
-      {
-        _id: updatedUser._id,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        email: updatedUser.email,
-        phone: updatedUser.phone,
-        zip: updatedUser.zip,
-      },
-      "Tirtho"
-    );
-
-    // Return the updated user and token
-    res.json({
-      status: "Update successful",
-      token: token,
-      user: {
-        _id: updatedUser._id,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        email: updatedUser.email,
-        phone: updatedUser.phone,
-        zip: updatedUser.zip,
-        // Add other user details if needed
-      },
-    });
+    // Optionally, you can return the updated user as JSON
+    res.json("Updated user details successfully");
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Server error" });
