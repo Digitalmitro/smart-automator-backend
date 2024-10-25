@@ -940,7 +940,7 @@ server.put("/updateclient", userAuth, async (req, res) => {
         email,
         password: hashedPassword,
         phone,
-        zipczipode,
+        zip,
       };
     } else if ((oldPassword && !newPassword) || (newPassword && !oldPassword)) {
       return res
