@@ -21,6 +21,9 @@ const userAuth = require("./middlewares/userAuth");
 const server = express();
 //to avoid cors error//
 const connection = require("./config/db");
+const { ServiceCategory } = require("./models/ServicesModel/ServiceCategories");
+const adminAuth = require("./middlewares/adminAuth");
+const Services = require("./models/ServicesModel/Services");
 server.use(cors());
 server.use(express.json());
 
@@ -76,37 +79,75 @@ server.get("/", async (req, res) => {
 
 //ADMIN Section
 // ADMIN  Register//
+// server.post("/registeradmin", async (req, res) => {
+//   const { name, email, password } = req.body;
+
+//   try {
+//     // Check if the email already exists in the database
+//     const existingAdvisor = await RegisteradminModal.findOne();
+
+//     if (existingAdvisor) {
+//       // If email already exists, send an error response
+//       res.status(400).send("Admin already exists");
+//     } else {
+//       // Hash the password
+//       bcrypt.hash(password, 5, async (err, hash) => {
+//         if (err) {
+//           console.log(err);
+//         } else {
+//           // Create a new instance of RegisteradvisorModal with the hashed password
+//           const newData = new RegisteradminModal({
+//             name,
+//             email,
+//             password: hash,
+//           });
+
+//           // Save the advisor data to the database
+//           await newData.save();
+
+//           // Send a success response
+//           res.send("Registered");
+//         }
+//       });
+//     }
+//   } catch (error) {
+//     // Handle other errors, such as missing details in the request
+//     console.log(error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
 server.post("/registeradmin", async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
     // Check if the email already exists in the database
-    const existingAdvisor = await RegisteradminModal.findOne({ email });
+    const existingAdmin = await RegisteradminModal.findOne();
 
-    if (existingAdvisor) {
+    if (existingAdmin) {
       // If email already exists, send an error response
-      res.status(400).send("Email already exists");
-    } else {
-      // Hash the password
-      bcrypt.hash(password, 5, async (err, hash) => {
-        if (err) {
-          console.log(err);
-        } else {
-          // Create a new instance of RegisteradvisorModal with the hashed password
-          const newData = new RegisteradminModal({
-            name,
-            email,
-            password: hash,
-          });
-
-          // Save the advisor data to the database
-          await newData.save();
-
-          // Send a success response
-          res.send("Registered");
-        }
-      });
+      return res.status(400).send("Admin already exists");
     }
+    // Create a new instance of RegisteradvisorModal with the hashed password
+    const newData = new RegisteradminModal({
+      name,
+      email,
+      password,
+    });
+
+    // Save the advisor data to the database
+    const registered = await newData.save();
+
+    const token = await registered.generateAuthToken();
+
+    registered.password = undefined;
+
+    // Send a success response
+    return res.status(200).json({
+      message: "Registered successfully",
+      token: token,
+      user: registered,
+    });
   } catch (error) {
     // Handle other errors, such as missing details in the request
     console.log(error);
@@ -114,37 +155,75 @@ server.post("/registeradmin", async (req, res) => {
   }
 });
 //ADMIN Login
+// server.post("/loginadmin", async (req, res) => {
+//   const { email, password } = req.body;
+//   try {
+//     const user = await RegisteradminModal.findOne({ email });
+//     if (user) {
+//       bcrypt.compare(password, user.password, (err, result) => {
+//         if (result) {
+//           const token = jwt.sign(
+//             {
+//               _id: user._id,
+//               name: user.name,
+//               email: user.email,
+//             },
+//             "Tirtho"
+//           );
+//           res.json({
+//             status: "login successful",
+//             token: token,
+//             user: {
+//               name: user.name,
+//               email: user.email,
+
+//               _id: user._id,
+
+//               // Add other user details if needed
+//             },
+//           });
+//         } else {
+//           res.status(401).json({ status: "wrong entry" });
+//         }
+//       });
+//     } else {
+//       res.status(404).json({ status: "user not found" });
+//     }
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ status: "internal server error" });
+//   }
+// });
+
 server.post("/loginadmin", async (req, res) => {
-  const { email, password } = req.body;
   try {
-    const user = await RegisteradminModal.findOne({ email });
-    if (user) {
-      bcrypt.compare(password, user.password, (err, result) => {
-        if (result) {
-          const token = jwt.sign(
-            {
-              _id: user._id,
-              name: user.name,
-              email: user.email,
-            },
-            "Tirtho"
-          );
-          res.json({
-            status: "login successful",
-            token: token,
-            user: {
-              name: user.name,
-              email: user.email,
+    const { email, password } = req.body;
 
-              _id: user._id,
+    if (!email || !password) {
+      return res
+        .status(422)
+        .json({ message: "Please fill all the fields.", success: false });
+    }
 
-              // Add other user details if needed
-            },
-          });
-        } else {
-          res.status(401).json({ status: "wrong entry" });
-        }
-      });
+    const adminFound = await RegisteradminModal.findOne({ email });
+
+    if (adminFound) {
+      const passCheck = await bcrypt.compare(password, adminFound.password);
+      const token = await adminFound.generateAuthToken();
+
+      adminFound.password = undefined;
+
+      if (passCheck) {
+        res.status(200).json({
+          status: "login successful",
+          token: token,
+          user: adminFound,
+        });
+      } else {
+        res
+          .status(401)
+          .json({ message: "Invalid login credentials", success: false });
+      }
     } else {
       res.status(404).json({ status: "user not found" });
     }
@@ -153,6 +232,7 @@ server.post("/loginadmin", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
+
 // Get all admins
 server.get("/admins", async (req, res) => {
   try {
@@ -195,6 +275,268 @@ server.delete("/admins/:id", async (req, res) => {
     res.status(500).json({ status: "internal server error" });
   }
 });
+
+// SERVICE CATEGORY APIS >>>>
+
+server.post("/admin/add-service-category", adminAuth, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+
+    if (!name) {
+      return res.status(422).json({
+        message: "Service category name must be provided!",
+        success: false,
+      });
+    }
+    // Create a new service category
+    const newCategory = new ServiceCategory({
+      name: name.toLowerCase(),
+      description,
+    });
+
+    await newCategory.save();
+    res.status(201).json({
+      message: "Service category added successfully",
+      category: newCategory,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to add service category",
+      error: error.message,
+    });
+  }
+});
+
+server.put("/admin/edit-service-category/:id", adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Check if ID is provided
+    if (!id) {
+      return res.status(400).json({
+        message: "Service category ID is required!",
+        success: false,
+      });
+    }
+
+    if (updates.name) {
+      updates.name = updates.name.toLowerCase();
+    }
+
+    // Update the category with only the provided fields
+    const updatedCategory = await ServiceCategory.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true }
+    );
+
+    if (!updatedCategory) {
+      return res.status(404).json({
+        message: "Service category not found!",
+        success: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Service category updated successfully",
+      category: updatedCategory,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update service category",
+      error: error.message,
+    });
+  }
+});
+
+server.delete(
+  "/admin/delete-service-category/:id",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Check if ID is provided
+      if (!id) {
+        return res.status(400).json({
+          message: "Service category ID is required!",
+          success: false,
+        });
+      }
+
+      // Delete the category by ID
+      const deletedCategory = await ServiceCategory.findByIdAndDelete(id);
+
+      if (!deletedCategory) {
+        return res.status(404).json({
+          message: "Service category not found!",
+          success: false,
+        });
+      }
+
+      res.status(200).json({
+        message: "Service category deleted successfully",
+        success: true,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to delete service category",
+        error: error.message,
+      });
+    }
+  }
+);
+
+server.get("/admin/service-categories", adminAuth, async (req, res) => {
+  try {
+    const categories = await ServiceCategory.find();
+
+    res.status(200).json({
+      message: "Service categories retrieved successfully",
+      categories,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to retrieve service categories",
+      error: error.message,
+      success: false,
+    });
+  }
+});
+
+// SERVICES >>>>
+server.post("/admin/add-service", adminAuth, async (req, res) => {
+  try {
+    const {
+      serviceName,
+      description,
+      questions,
+      hourlyCharge,
+      serviceCategory,
+    } = req.body;
+
+    if(!serviceName || (!questions || questions.length === 0) || !hourlyCharge || !serviceCategory){
+      return res.status(422).json({
+        message: "Please fill in all the fields",
+        success: false
+      })
+    }
+
+    const newService = new Services({
+      serviceName,
+      description,
+      questions,
+      hourlyCharge,
+      serviceCategory,
+    });
+
+    const savedService = await newService.save();
+    res
+      .status(201)
+      .json({ message: "Service created successfully", service: savedService });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error creating service", error: error.message });
+  }
+});
+
+server.get("/admin/services", adminAuth, async (req, res) => {
+  try {
+    const services = await Services.find().populate('serviceCategory', 'name');
+
+    res.status(200).json({
+      message: "Services fetched successfully",
+      services,
+      success: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching services",
+      error: error.message,
+      success: false
+    });
+  }
+});
+
+server.get("/admin/service/:id", adminAuth, async (req, res) => {
+  try {
+    const service = await Services.findById(req.params.id).populate('serviceCategory', 'name');
+    
+    if (!service) {
+      return res.status(404).json({
+        message: "Service not found",
+        success: false
+      });
+    }
+
+    res.status(200).json({
+      message: "Service fetched successfully",
+      service,
+      success: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching service",
+      error: error.message,
+      success: false
+    });
+  }
+});
+
+server.put("/admin/edit-service/:id", adminAuth, async (req, res) => {
+  try {
+    const updatedService = await Services.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+    if (!updatedService) {
+      return res.status(404).json({
+        message: "Service not found",
+        success: false
+      });
+    }
+
+    res.status(200).json({
+      message: "Service updated successfully",
+      service: updatedService,
+      success: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error updating service",
+      error: error.message,
+      success: false
+    });
+  }
+});
+
+server.delete("/admin/delete-service/:id", adminAuth, async (req, res) => {
+  try {
+    const deletedService = await Services.findByIdAndDelete(req.params.id);
+
+    if (!deletedService) {
+      return res.status(404).json({
+        message: "Service not found",
+        success: false
+      });
+    }
+
+    res.status(200).json({
+      message: "Service deleted successfully",
+      success: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error deleting service",
+      error: error.message,
+      success: false
+    });
+  }
+});
+// <<<< SERVICES
 
 //Tasker Section
 // Tasker Register//

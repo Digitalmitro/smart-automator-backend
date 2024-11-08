@@ -1,15 +1,15 @@
 const jwt = require("jsonwebtoken");
-const { RegisterclientModal } = require("../models/ClientModel/RegisterClient");
+const { RegisteradminModal } = require("../models/AdminModel/RegisterAdminModel");
 
 
-const userAuth = async (req, res, next) => {
+const adminAuth = async (req, res, next) => {
   try {
     const token = req.headers.token;
     const verifyToken =  jwt.verify(token, process.env.secret_key);
 
     console.log(verifyToken);
 
-    const rootUser = await RegisterclientModal.findOne({ _id: verifyToken._id }).select("-__v");
+    const rootUser = await RegisteradminModal.findOne({ _id: verifyToken._id }).select("-__v");
 
     console.log(rootUser);
 
@@ -27,4 +27,4 @@ const userAuth = async (req, res, next) => {
   }
 };
 
-module.exports = userAuth;
+module.exports = adminAuth;
