@@ -26,7 +26,6 @@ const adminAuth = require("./middlewares/adminAuth");
 const Services = require("./models/ServicesModel/Services");
 server.use(cors());
 server.use(express.json());
-
 const Port = process.env.port || 3500;
 
 connection();
@@ -64,6 +63,7 @@ const upload = multer({
     }
   },
 });
+server.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // TEST //
 server.get("/", async (req, res) => {
@@ -154,6 +154,7 @@ server.post("/registeradmin", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+
 //ADMIN Login
 // server.post("/loginadmin", async (req, res) => {
 //   const { email, password } = req.body;
@@ -277,18 +278,16 @@ server.delete("/admins/:id", async (req, res) => {
 });
 
 // SERVICE CATEGORY APIS >>>>
-
 server.post("/admin/add-service-category", adminAuth, async (req, res) => {
+
   try {
     const { name, description } = req.body;
-
     if (!name) {
       return res.status(422).json({
         message: "Service category name must be provided!",
         success: false,
       });
     }
-    // Create a new service category
     const newCategory = new ServiceCategory({
       name: name.toLowerCase(),
       description,
@@ -779,7 +778,7 @@ server.post("/service", upload.single("image"), async (req, res) => {
 
   try {
     const newPackage = new TaskerserviceModal({
-      image: req.file.filename, // Update to use req.file.filename
+      image: req.file.filename, 
       phone,
       userName,
       description,
@@ -794,7 +793,6 @@ server.post("/service", upload.single("image"), async (req, res) => {
 
     await newPackage.save();
 
-    // Assuming RegistertaskerModal is defined elsewhere in your code
     await RegistertaskerModal.findByIdAndUpdate(
       user_id,
       { $push: { service: newPackage._id } },
@@ -807,17 +805,13 @@ server.post("/service", upload.single("image"), async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-// Serve static files from the 'uploads' directory
-server.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 server.use(express.json());
-//get all services
 server.get("/service", async (req, res) => {
   try {
-    // Retrieve all service records from the database
     const services = await TaskerserviceModal.find();
 
-    // Send the retrieved records as a response
     res.status(200).json(services);
   } catch (error) {
     console.log(error);
@@ -868,7 +862,7 @@ server.delete("/service/:id", async (req, res) => {
 // Update services by id
 server.put("/service/:id", async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body; // Assuming the request body contains the data to update
+  const updateData = req.body; 
 
   try {
     const existingData = await TaskerserviceModal.findById(id);
@@ -1108,6 +1102,7 @@ server.get("/logout-client", userAuth, async (req, res) => {
   }
 });
 
+
 // Get all clients
 server.get("/clients", async (req, res) => {
   try {
@@ -1232,6 +1227,43 @@ server.delete("/clients/:id", async (req, res) => {
 //     res.status(500).json({ error: "Server error" });
 //   }
 // });
+
+server.get("/client/service-categories", userAuth, async (req, res) => {
+  try {
+    const categories = await ServiceCategory.find();
+
+    res.status(200).json({
+      message: "Service categories retrieved successfully",
+      categories,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to retrieve service categories",
+      error: error.message,
+      success: false,
+    });
+  }
+});
+
+server.get("/client/services", userAuth, async (req, res) => {
+  try {
+    const services = await Services.find().populate('serviceCategory', 'name');
+
+    res.status(200).json({
+      message: "Services fetched successfully",
+      services,
+      success: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching services",
+      error: error.message,
+      success: false
+    });
+  }
+});
+
 
 server.put("/updateclient", userAuth, async (req, res) => {
   const {
@@ -1458,6 +1490,7 @@ server.post("/workAddress", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+
 server.get("/workAddress/:id", async (req, res) => {
   const { id } = req.params;
   try {
