@@ -24,6 +24,7 @@ const connection = require("./config/db");
 const { ServiceCategory } = require("./models/ServicesModel/ServiceCategories");
 const adminAuth = require("./middlewares/adminAuth");
 const Services = require("./models/ServicesModel/Services");
+const uploadS3 = require("./middlewares/uploadS3");
 server.use(cors());
 server.use(express.json());
 const Port = process.env.port || 3500;
@@ -64,6 +65,21 @@ const upload = multer({
   },
 });
 server.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// S3 File Upload
+server.post("/upload", function (request, response, next) {
+  uploadS3(request, response, function (error) {
+    if (error) {
+      console.log(error);
+      return response.status(500).json({ message: error });
+    }
+    response.status(200).json({
+      message: "File uploaded successfully.",
+      success: true,
+      fileUrl: `${process.env.S3_ENDPOINT}${fileName}`,
+    });
+  });
+});
 
 // TEST //
 server.get("/", async (req, res) => {
