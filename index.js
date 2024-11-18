@@ -297,16 +297,17 @@ server.delete("/admins/:id", async (req, res) => {
 server.post("/admin/add-service-category", adminAuth, async (req, res) => {
 
   try {
-    const { name, description } = req.body;
-    if (!name) {
+    const { name, description, image } = req.body;
+    if (!name || !image || !description) {
       return res.status(422).json({
-        message: "Service category name must be provided!",
+        message: "Service category name , description and image must be provided!",
         success: false,
       });
     }
     const newCategory = new ServiceCategory({
       name: name.toLowerCase(),
       description,
+      image
     });
 
     await newCategory.save();
@@ -428,13 +429,15 @@ server.post("/admin/add-service", adminAuth, async (req, res) => {
   try {
     const {
       serviceName,
+      image,
+      shortDescription,
       description,
       questions,
       hourlyCharge,
       serviceCategory,
     } = req.body;
 
-    if(!serviceName || (!questions || questions.length === 0) || !hourlyCharge || !serviceCategory){
+    if(!serviceName || (!questions || questions.length === 0) || !hourlyCharge || !shortDescription || !description || !image || !serviceCategory){
       return res.status(422).json({
         message: "Please fill in all the fields",
         success: false
@@ -447,6 +450,8 @@ server.post("/admin/add-service", adminAuth, async (req, res) => {
       questions,
       hourlyCharge,
       serviceCategory,
+      image,
+      shortDescription,
     });
 
     const savedService = await newService.save();
