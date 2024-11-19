@@ -1249,7 +1249,7 @@ server.delete("/clients/:id", async (req, res) => {
 //   }
 // });
 
-server.get("/client/service-categories", userAuth, async (req, res) => {
+server.get("/client/service-categories", async (req, res) => {
   try {
     const categories = await ServiceCategory.find();
 
@@ -1267,7 +1267,7 @@ server.get("/client/service-categories", userAuth, async (req, res) => {
   }
 });
 
-server.get("/client/services", userAuth, async (req, res) => {
+server.get("/client/services", async (req, res) => {
   try {
     const services = await Services.find().populate('serviceCategory', 'name');
 
@@ -1284,7 +1284,6 @@ server.get("/client/services", userAuth, async (req, res) => {
     });
   }
 });
-
 
 server.put("/updateclient", userAuth, async (req, res) => {
   const {

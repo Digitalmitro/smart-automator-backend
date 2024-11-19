@@ -25,7 +25,7 @@ const ServiceSchema = new mongoose.Schema({
   questions: [
     {
       question: { type: String, required: true },
-      options: { type: [String], required: true }, // Array of options for each question
+      options: { type: [String], required: true },
     },
   ],
   durationRanges: [
