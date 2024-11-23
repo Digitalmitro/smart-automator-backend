@@ -25,6 +25,7 @@ const { ServiceCategory } = require("./models/ServicesModel/ServiceCategories");
 const adminAuth = require("./middlewares/adminAuth");
 const Services = require("./models/ServicesModel/Services");
 const uploadS3 = require("./middlewares/uploadS3");
+const CmsModel = require("./models/AdminModel/CMS");
 server.use(cors());
 server.use(express.json());
 const Port = process.env.port || 3500;
@@ -295,19 +296,20 @@ server.delete("/admins/:id", async (req, res) => {
 
 // SERVICE CATEGORY APIS >>>>
 server.post("/admin/add-service-category", adminAuth, async (req, res) => {
-
   try {
-    const { name, description, image } = req.body;
+    const { name, description, image, logo } = req.body;
     if (!name || !image || !description) {
       return res.status(422).json({
-        message: "Service category name , description and image must be provided!",
+        message:
+          "Service category name , description and image must be provided!",
         success: false,
       });
     }
     const newCategory = new ServiceCategory({
       name: name.toLowerCase(),
       description,
-      image
+      image,
+      logo
     });
 
     await newCategory.save();
@@ -437,11 +439,20 @@ server.post("/admin/add-service", adminAuth, async (req, res) => {
       serviceCategory,
     } = req.body;
 
-    if(!serviceName || (!questions || questions.length === 0) || !hourlyCharge || !shortDescription || !description || !image || !serviceCategory){
+    if (
+      !serviceName ||
+      !questions ||
+      questions.length === 0 ||
+      !hourlyCharge ||
+      !shortDescription ||
+      !description ||
+      !image ||
+      !serviceCategory
+    ) {
       return res.status(422).json({
         message: "Please fill in all the fields",
-        success: false
-      })
+        success: false,
+      });
     }
 
     const newService = new Services({
@@ -467,68 +478,75 @@ server.post("/admin/add-service", adminAuth, async (req, res) => {
 
 server.get("/admin/services", adminAuth, async (req, res) => {
   try {
-    const services = await Services.find().populate('serviceCategory', 'name');
+    const services = await Services.find().populate("serviceCategory", "name");
 
     res.status(200).json({
       message: "Services fetched successfully",
       services,
-      success: true
+      success: true,
     });
   } catch (error) {
     res.status(500).json({
       message: "Error fetching services",
       error: error.message,
-      success: false
+      success: false,
     });
   }
 });
 
 server.get("/admin/service/:id", adminAuth, async (req, res) => {
   try {
-    const service = await Services.findById(req.params.id).populate('serviceCategory', 'name');
-    
+    const service = await Services.findById(req.params.id).populate(
+      "serviceCategory",
+      "name"
+    );
+
     if (!service) {
       return res.status(404).json({
         message: "Service not found",
-        success: false
+        success: false,
       });
     }
 
     res.status(200).json({
       message: "Service fetched successfully",
       service,
-      success: true
+      success: true,
     });
   } catch (error) {
     res.status(500).json({
       message: "Error fetching service",
       error: error.message,
-      success: false
+      success: false,
     });
   }
 });
 
 server.put("/admin/edit-service/:id", adminAuth, async (req, res) => {
   try {
-    const updatedService = await Services.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedService = await Services.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
 
     if (!updatedService) {
       return res.status(404).json({
         message: "Service not found",
-        success: false
+        success: false,
       });
     }
 
     res.status(200).json({
       message: "Service updated successfully",
       service: updatedService,
-      success: true
+      success: true,
     });
   } catch (error) {
     res.status(500).json({
       message: "Error updating service",
       error: error.message,
-      success: false
+      success: false,
     });
   }
 });
@@ -540,23 +558,59 @@ server.delete("/admin/delete-service/:id", adminAuth, async (req, res) => {
     if (!deletedService) {
       return res.status(404).json({
         message: "Service not found",
-        success: false
+        success: false,
       });
     }
 
     res.status(200).json({
       message: "Service deleted successfully",
-      success: true
+      success: true,
     });
   } catch (error) {
     res.status(500).json({
       message: "Error deleting service",
       error: error.message,
-      success: false
+      success: false,
     });
   }
 });
 // <<<< SERVICES
+
+// ADMIN CMS >>>>>>
+
+// Add Home CMS
+server.post("/admin/home-cms", adminAuth, async (req, res) => {
+  try {
+    const { heading, banner, description } = req.body;
+
+    // Build the update object based on the parameters provided
+    const updateFields = {};
+    if (heading !== undefined) updateFields["homePage.heading"] = heading;
+    if (banner !== undefined) updateFields["homePage.banner"] = banner;
+    if (heading !== undefined)
+      updateFields["homePage.description"] = description;
+
+    // Use the upsert option to create or update the document
+    const result = await CmsModel.updateOne(
+      {}, // No filter to match a specific document; upsert ensures one document exists
+      { $set: updateFields },
+      { upsert: true } // Create the document if it doesn't exist
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Content updated successfully",
+      data: result,
+    });
+  } catch (e) {
+    console.error("Error updating CMS content:", e);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update content",
+      error: e.message,
+    });
+  }
+});
 
 //Tasker Section
 // Tasker Register//
@@ -781,6 +835,26 @@ server.delete("/taskers/:id", async (req, res) => {
   }
 });
 
+// CUSTOMER CMS >>>>>>
+server.get("/home-cms", async (req, res) => {
+  try {
+    const getHomeCms = await CmsModel.findOne({}).select({
+      _id: 0,
+      homePage: 1,
+    });
+
+    return res.status(200).json({
+      message: "CMS fetched",
+      success: true,
+      homeCMS: getHomeCms,
+    });
+  } catch (e) {
+    console.log(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+// <<<<<< CUSTOMER CMS
+
 //Service Section For Tasker
 // Create Service Tasker populate
 server.post("/service", upload.single("image"), async (req, res) => {
@@ -799,7 +873,7 @@ server.post("/service", upload.single("image"), async (req, res) => {
 
   try {
     const newPackage = new TaskerserviceModal({
-      image: req.file.filename, 
+      image: req.file.filename,
       phone,
       userName,
       description,
@@ -826,7 +900,6 @@ server.post("/service", upload.single("image"), async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
 
 server.use(express.json());
 server.get("/service", async (req, res) => {
@@ -883,7 +956,7 @@ server.delete("/service/:id", async (req, res) => {
 // Update services by id
 server.put("/service/:id", async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body; 
+  const updateData = req.body;
 
   try {
     const existingData = await TaskerserviceModal.findById(id);
@@ -1123,7 +1196,6 @@ server.get("/logout-client", userAuth, async (req, res) => {
   }
 });
 
-
 // Get all clients
 server.get("/clients", async (req, res) => {
   try {
@@ -1249,9 +1321,9 @@ server.delete("/clients/:id", async (req, res) => {
 //   }
 // });
 
-server.get("/client/service-categories", userAuth, async (req, res) => {
+server.get("/client/service-categories", async (req, res) => {
   try {
-    const categories = await ServiceCategory.find();
+    const categories = await ServiceCategory.find({ active: true });
 
     res.status(200).json({
       message: "Service categories retrieved successfully",
@@ -1269,22 +1341,21 @@ server.get("/client/service-categories", userAuth, async (req, res) => {
 
 server.get("/client/services", userAuth, async (req, res) => {
   try {
-    const services = await Services.find().populate('serviceCategory', 'name');
+    const services = await Services.find().populate("serviceCategory", "name");
 
     res.status(200).json({
       message: "Services fetched successfully",
       services,
-      success: true
+      success: true,
     });
   } catch (error) {
     res.status(500).json({
       message: "Error fetching services",
       error: error.message,
-      success: false
+      success: false,
     });
   }
 });
-
 
 server.put("/updateclient", userAuth, async (req, res) => {
   const {
