@@ -1339,7 +1339,7 @@ server.get("/client/service-categories", async (req, res) => {
   }
 });
 
-server.get("/client/services", userAuth, async (req, res) => {
+server.get("/client/services", async (req, res) => {
   try {
     const services = await Services.find().populate("serviceCategory", "name");
 
