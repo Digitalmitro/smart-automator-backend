@@ -26,6 +26,7 @@ const adminAuth = require("./middlewares/adminAuth");
 const Services = require("./models/ServicesModel/Services");
 const uploadS3 = require("./middlewares/uploadS3");
 const CmsModel = require("./models/AdminModel/CMS");
+const BlogModel = require("./models/AdminModel/Blog");
 server.use(cors());
 server.use(express.json());
 const Port = process.env.port || 3500;
@@ -309,7 +310,7 @@ server.post("/admin/add-service-category", adminAuth, async (req, res) => {
       name: name.toLowerCase(),
       description,
       image,
-      logo
+      logo,
     });
 
     await newCategory.save();
@@ -581,7 +582,7 @@ server.delete("/admin/delete-service/:id", adminAuth, async (req, res) => {
 // Add Home CMS
 server.post("/admin/home-cms", adminAuth, async (req, res) => {
   try {
-    const { heading, banner, description } = req.body;
+    const { heading, banner, description, blogs } = req.body;
 
     // Build the update object based on the parameters provided
     const updateFields = {};
@@ -589,6 +590,7 @@ server.post("/admin/home-cms", adminAuth, async (req, res) => {
     if (banner !== undefined) updateFields["homePage.banner"] = banner;
     if (heading !== undefined)
       updateFields["homePage.description"] = description;
+    if (blogs !== undefined) updateFields["homePage.blogs"] = blogs; // Add selected blog IDs
 
     // Use the upsert option to create or update the document
     const result = await CmsModel.updateOne(
@@ -608,6 +610,186 @@ server.post("/admin/home-cms", adminAuth, async (req, res) => {
       success: false,
       message: "Failed to update content",
       error: e.message,
+    });
+  }
+});
+
+server.post("/admin/add-blog", adminAuth, async (req, res) => {
+  try {
+    const { title, shortDescription, description, slug, active, images } =
+      req.body;
+
+    const existingBlog = await BlogModel.findOne({ slug });
+
+    if (existingBlog) {
+      return res.status(400).json({
+        message: "Blog of that slug already exists !",
+        success: false,
+      });
+    }
+
+    const newBlog = new BlogModel({
+      title,
+      shortDescription,
+      description,
+      slug,
+      active,
+      images,
+    });
+
+    const savedBlog = await newBlog.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Blog added successfully",
+      data: savedBlog,
+    });
+  } catch (e) {
+    console.error("Error adding blog:", e);
+    res.status(500).json({
+      success: false,
+      message: "Failed to add blog",
+      error: e.message,
+    });
+  }
+});
+
+server.put("/admin/edit-blog/:id", adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateFields = req.body; // Directly use request body for updating fields
+    const { slug } = req.body; // Destructure slug from the request body
+
+    // Check if the slug is being updated and if so, check for uniqueness
+    if (slug) {
+      const existingBlog = await BlogModel.findOne({ slug });
+
+      // If the slug exists but it's not the same blog being updated, throw an error
+      if (existingBlog && existingBlog._id.toString() !== id) {
+        return res.status(400).json({
+          message: "Blog with this slug already exists!",
+          success: false,
+        });
+      }
+    }
+
+    // Proceed to update the blog
+    const updatedBlog = await BlogModel.findByIdAndUpdate(
+      id,
+      { $set: updateFields },
+      { new: true } // Returns the updated document
+    );
+
+    if (!updatedBlog) {
+      return res.status(404).json({
+        success: false,
+        message: "Blog not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Blog updated successfully",
+      data: updatedBlog,
+    });
+  } catch (e) {
+    console.error("Error editing blog:", e);
+    res.status(500).json({
+      success: false,
+      message: "Failed to edit blog",
+      error: e.message,
+    });
+  }
+});
+
+// GET /admin/blog/:id - Fetch blog by ID
+server.get("/admin/blog/:id", adminAuth, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Find blog by ID
+    const blog = await BlogModel.findById(id);
+
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    res.status(200).json({ message: "Blog fetched successfully", blog });
+  } catch (error) {
+    console.error("Error fetching blog by ID:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch blog", error: error.message });
+  }
+});
+
+server.delete("/admin/delete-blog/:id", adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedBlog = await BlogModel.findByIdAndDelete(id);
+
+    if (!deletedBlog) {
+      return res.status(404).json({
+        success: false,
+        message: "Blog not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Blog deleted successfully",
+    });
+  } catch (e) {
+    console.error("Error deleting blog:", e);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete blog",
+      error: e.message,
+    });
+  }
+});
+
+// GET /admin/blogs - Fetch blogs with optional pagination and filtering
+server.get("/admin/blogs", adminAuth, async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const query = {};
+    // if (status === 'active') {
+    //   query.active = true;
+    // } else if (status === 'inactive') {
+    //   query.active = false;
+    // }
+
+    // Pagination and sorting
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const blogs = await BlogModel.find(query)
+      .sort({ createdAt: -1 }) // Sort by newest first
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Count total blogs for pagination metadata
+    const totalBlogs = await BlogModel.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      message: "Blogs fetched successfully",
+      data: {
+        blogs,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalBlogs / parseInt(limit)),
+          totalBlogs,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching blogs:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch blogs",
+      error: error.message,
     });
   }
 });
@@ -838,10 +1020,15 @@ server.delete("/taskers/:id", async (req, res) => {
 // CUSTOMER CMS >>>>>>
 server.get("/home-cms", async (req, res) => {
   try {
-    const getHomeCms = await CmsModel.findOne({}).select({
-      _id: 0,
-      homePage: 1,
-    });
+    const getHomeCms = await CmsModel.findOne({})
+      .select({
+        _id: 0,
+        homePage: 1,
+      })
+      .populate({
+        path: "homePage.blogs", // Path to the 'blogs' field in homePage
+        select: "title shortDescription images", // Only select these fields
+      });
 
     return res.status(200).json({
       message: "CMS fetched",
