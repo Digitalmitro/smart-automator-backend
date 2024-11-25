@@ -1,13 +1,14 @@
 const mongoose = require("mongoose");
 
-const homeAddressSchema = mongoose.Schema({
-  address1: {
+const addressSchema = mongoose.Schema({
+  name:{
     type: String,
-    required: true,
   },
-  address2: {
+  phone: {
     type: String,
-    
+  },
+  country: {
+    type: String,
   },
   city: {
     type: String,
@@ -17,12 +18,16 @@ const homeAddressSchema = mongoose.Schema({
     type: String,
     required: true,
   },
+  street: {
+    type: String,
+  },
   zip: {
     type: String,
   },
+ 
   addressType: {
     type: String,
-    required: true,
+    // required: true,
   },
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
@@ -31,6 +36,7 @@ const homeAddressSchema = mongoose.Schema({
   },
 });
 
-const HomeAddressModal = mongoose.model("homeAddress", homeAddressSchema);
+const AddressModal = mongoose.model("address", 
+  addressSchema);
 
-module.exports = { HomeAddressModal };
+module.exports = { AddressModal };

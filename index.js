@@ -12,7 +12,7 @@ const { RegisterclientModal } = require("./models/ClientModel/RegisterClient");
 const { RegistertaskerModal } = require("./models/TaskerModel/RegisterTasker");
 const { TaskerserviceModal } = require("./models/TaskerModel/TaskerService");
 
-const { HomeAddressModal } = require("./models/ClientModel/HomeAddress");
+const { AddressModal } = require("./models/ClientModel/Address");
 const { WorkAddressModal } = require("./models/ClientModel/WorkAddress");
 const { OrderModal } = require("./models/ClientModel/OrderList");
 const jwt = require("jsonwebtoken");
@@ -1269,7 +1269,7 @@ server.post("/registerclient", async (req, res) => {
 // server.post("/loginclient", async (req, res) => {
 //   const { email, password } = req.body;
 //   try {
-//     const user = await RegisterclientModal.findOne({ email });
+//     const user = await RegisterclientModal.findOne({ ema il });
 //     if (user) {
 //       bcrypt.compare(password, user.password, (err, result) => {
 //         if (result) {
@@ -1620,195 +1620,257 @@ server.put("/updateclient", userAuth, async (req, res) => {
   }
 });
 
-server.post("/homeAddress", async (req, res) => {
-  const { address1, address2, city, state, zip, addressType, user_id } =
-    req.body;
 
+// Create Address
+server.post("/address", async (req, res) => {
   try {
-    // Find the existing homecms document for the given user_id
-    const existingPackage = await HomeAddressModal.findOne({ user_id });
-
-    if (!existingPackage) {
-      // If no existing document, create a new one
-      const newPackage = new HomeAddressModal({
-        address1,
-        address2,
-        city,
-        state,
-        zip,
-        addressType,
-        user_id,
-      });
-
-      // Save the new document to the database
-      await newPackage.save();
-
-      // Update the user's details array
-      await RegisterclientModal.findByIdAndUpdate(
-        user_id,
-        { $push: { homeAddress: newPackage._id } },
-        { new: true }
-      );
-    } else {
-      // If an existing document is found, update its fields
-      await HomeAddressModal.findOneAndUpdate(
-        { user_id },
-        {
-          address1,
-          address2,
-          city,
-          state,
-          zip,
-          addressType,
-        },
-        { new: true }
-      );
-    }
-
-    // Send a success response
-    res.send("Home Address added/updated successfully");
+    const { name,phone, country,  city, state, street, zip, addressType, user_id } = req.body;
+    const newAddress = new AddressModal({  name,phone, country,  city, state, street, zip, addressType, user_id});
+    const savedAddress = await newAddress.save();
+    res.status(201).json(savedAddress);
   } catch (error) {
-    console.log(error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Failed to create address", details: error.message });
   }
 });
 
-server.get("/homeAddress/:id", async (req, res) => {
-  const { id } = req.params;
+
+
+server.get("/address/:userId", async (req, res) => {
+  const { userId } = req.params;
+
   try {
-    const data = await RegisterclientModal.findById(id).populate("homeAddress");
-    res.send({
-      message: "get Address Data success",
-      data: data,
-    });
+    const addresses = await AddressModal.find({ user_id: userId }).populate("user_id", "name email");
+    res.status(200).json(addresses);
   } catch (error) {
-    console.log(error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Failed to fetch addresses", details: error.message });
   }
 });
 
-server.delete("/homeAddress/:id", async (req, res) => {
-  const addressId = req.params.id;
-
+// Get Address By ID
+server.get("/address/:id", async (req, res) => {
   try {
-    // Address exists, proceed with deletion
-    await HomeAddressModal.findOneAndDelete(addressId);
-
-    // Send a success response
-    res.send("Home Address deleted successfully");
+    const address = await AddressModal.findById(req.params.id).populate("user_id", "name email");
+    if (!address) return res.status(404).json({ error: "Address not found" });
+    res.status(200).json(address);
   } catch (error) {
-    console.error("Error deleting home address:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Failed to fetch address", details: error.message });
   }
 });
 
-server.delete("/workAddress/:id", async (req, res) => {
-  const addressId = req.params.id;
-
+// Update Address
+server.put("/address/:id", async (req, res) => {
   try {
-    // Address exists, proceed with deletion
-    await WorkAddressModal.findOneAndDelete(addressId);
-
-    // Send a success response
-    res.send("work Address deleted successfully");
+    console.log(req.body)
+    const updatedAddress = await AddressModal.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updatedAddress) return res.status(404).json({ error: "Address not found" });
+    res.status(200).json(updatedAddress);
   } catch (error) {
-    console.error("Error deleting work address:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Failed to update address", details: error.message });
   }
 });
 
-server.post("/workAddress", async (req, res) => {
-  const { address1, address2, city, state, zip, addressType, user_id } =
-    req.body;
-
+// Delete Address
+server.delete("/address/:id", async (req, res) => {
   try {
-    // Find the existing homecms document for the given user_id
-    const existingPackage = await WorkAddressModal.findOne({ user_id });
-
-    if (!existingPackage) {
-      // If no existing document, create a new one
-      const newPackage = new WorkAddressModal({
-        address1,
-        address2,
-        city,
-        state,
-        zip,
-        addressType,
-        user_id,
-      });
-
-      // Save the new document to the database
-      await newPackage.save();
-
-      // Update the user's details array
-      await RegisterclientModal.findByIdAndUpdate(
-        user_id,
-        { $push: { workAddress: newPackage._id } },
-        { new: true }
-      );
-    } else {
-      // If an existing document is found, update its fields
-      await WorkAddressModal.findOneAndUpdate(
-        { user_id },
-        {
-          address1,
-          address2,
-          city,
-          state,
-          zip,
-          addressType,
-        },
-        { new: true }
-      );
-    }
-
-    // Send a success response
-    res.send("work Address added/updated successfully");
+    const deletedAddress = await AddressModal.findByIdAndDelete(req.params.id);
+    if (!deletedAddress) return res.status(404).json({ error: "Address not found" });
+    res.status(200).json({ message: "Address deleted successfully" });
   } catch (error) {
-    console.log(error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Failed to delete address", details: error.message });
   }
 });
 
-server.get("/workAddress/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    const data = await RegisterclientModal.findById(id).populate("workAddress");
-    res.send({
-      message: "get work Address Data success",
-      data: data,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).send("Internal Server Error");
-  }
-});
+// server.post("/homeAddress", async (req, res) => {
+//   const { address1, address2, city, state, zip, addressType, user_id } =
+//     req.body;
 
-server.delete("/workAddress/:id", async (req, res) => {
-  const addressId = req.params.id;
+//   try {
+//     // Find the existing homecms document for the given user_id
+//     const existingPackage = await HomeAddressModal.findOne({ user_id });
 
-  try {
-    // Check if the home address exists
-    const existingAddress = await WorkAddressModal.findOne({
-      user_id: addressId,
-    });
-    if (!existingAddress) {
-      // Address not found
-      return res.status(404).send("Home Address not found");
-    }
+//     if (!existingPackage) {
+//       // If no existing document, create a new one
+//       const newPackage = new HomeAddressModal({
+//         address1,
+//         address2,
+//         city,
+//         state,
+//         zip,
+//         addressType,
+//         user_id,
+//       });
 
-    // Address exists, proceed with deletion
-    await WorkAddressModal.findOneAndDelete({ user_id: addressId });
+//       // Save the new document to the database
+//       await newPackage.save();
 
-    // Send a success response
-    res.send("Home Address deleted successfully");
-  } catch (error) {
-    console.error("Error deleting home address:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
+//       // Update the user's details array
+//       await RegisterclientModal.findByIdAndUpdate(
+//         user_id,
+//         { $push: { homeAddress: newPackage._id } },
+//         { new: true }
+//       );
+//     } else {
+//       // If an existing document is found, update its fields
+//       await HomeAddressModal.findOneAndUpdate(
+//         { user_id },
+//         {
+//           address1,
+//           address2,
+//           city,
+//           state,
+//           zip,
+//           addressType,
+//         },
+//         { new: true }
+//       );
+//     }
+
+//     // Send a success response
+//     res.send("Home Address added/updated successfully");
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
+// server.get("/homeAddress/:id", async (req, res) => {
+//   const { id } = req.params;
+//   try {
+//     const data = await RegisterclientModal.findById(id).populate("homeAddress");
+//     res.send({
+//       message: "get Address Data success",
+//       data: data,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
+// server.delete("/homeAddress/:id", async (req, res) => {
+//   const addressId = req.params.id;
+
+//   try {
+//     // Address exists, proceed with deletion
+//     await HomeAddressModal.findOneAndDelete(addressId);
+
+//     // Send a success response
+//     res.send("Home Address deleted successfully");
+//   } catch (error) {
+//     console.error("Error deleting home address:", error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
+// server.delete("/workAddress/:id", async (req, res) => {
+//   const addressId = req.params.id;
+
+//   try {
+//     // Address exists, proceed with deletion
+//     await WorkAddressModal.findOneAndDelete(addressId);
+
+//     // Send a success response
+//     res.send("work Address deleted successfully");
+//   } catch (error) {
+//     console.error("Error deleting work address:", error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
+// server.post("/workAddress", async (req, res) => {
+//   const { address1, address2, city, state, zip, addressType, user_id } =
+//     req.body;
+
+//   try {
+//     // Find the existing homecms document for the given user_id
+//     const existingPackage = await WorkAddressModal.findOne({ user_id });
+
+//     if (!existingPackage) {
+//       // If no existing document, create a new one
+//       const newPackage = new WorkAddressModal({
+//         address1,
+//         address2,
+//         city,
+//         state,
+//         zip,
+//         addressType,
+//         user_id,
+//       });
+
+//       // Save the new document to the database
+//       await newPackage.save();
+
+//       // Update the user's details array
+//       await RegisterclientModal.findByIdAndUpdate(
+//         user_id,
+//         { $push: { workAddress: newPackage._id } },
+//         { new: true }
+//       );
+//     } else {
+//       // If an existing document is found, update its fields
+//       await WorkAddressModal.findOneAndUpdate(
+//         { user_id },
+//         {
+//           address1,
+//           address2,
+//           city,
+//           state,
+//           zip,
+//           addressType,
+//         },
+//         { new: true }
+//       );
+//     }
+
+//     // Send a success response
+//     res.send("work Address added/updated successfully");
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
+// server.get("/workAddress/:id", async (req, res) => {
+//   const { id } = req.params;
+//   try {
+//     const data = await RegisterclientModal.findById(id).populate("workAddress");
+//     res.send({
+//       message: "get work Address Data success",
+//       data: data,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
+// server.delete("/workAddress/:id", async (req, res) => {
+//   const addressId = req.params.id;
+
+//   try {
+//     // Check if the home address exists
+//     const existingAddress = await WorkAddressModal.findOne({
+//       user_id: addressId,
+//     });
+//     if (!existingAddress) {
+//       // Address not found
+//       return res.status(404).send("Home Address not found");
+//     }
+
+//     // Address exists, proceed with deletion
+//     await WorkAddressModal.findOneAndDelete({ user_id: addressId });
+
+//     // Send a success response
+//     res.send("Home Address deleted successfully");
+//   } catch (error) {
+//     console.error("Error deleting home address:", error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
 
 //Order Section For Client
+
+
 server.post("/order", async (req, res) => {
   const {
     image,
