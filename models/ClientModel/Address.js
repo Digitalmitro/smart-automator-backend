@@ -29,6 +29,11 @@ const addressSchema = mongoose.Schema({
     type: String,
     // required: true,
   },
+  default:{
+    type:Boolean,
+    default:false,
+    
+  },
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "register client",

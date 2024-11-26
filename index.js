@@ -27,6 +27,7 @@ const Services = require("./models/ServicesModel/Services");
 const uploadS3 = require("./middlewares/uploadS3");
 const CmsModel = require("./models/AdminModel/CMS");
 const BlogModel = require("./models/AdminModel/Blog");
+const OrderModel = require("./models/ClientModel/OrderList");
 server.use(cors());
 server.use(express.json());
 const Port = process.env.port || 3500;
@@ -1621,19 +1622,77 @@ server.put("/updateclient", userAuth, async (req, res) => {
 });
 
 
-// Create Address
 server.post("/address", async (req, res) => {
   try {
-    const { name,phone, country,  city, state, street, zip, addressType, user_id } = req.body;
-    const newAddress = new AddressModal({  name,phone, country,  city, state, street, zip, addressType, user_id});
+    const { name, phone, country, city, state, street, zip, addressType, user_id } = req.body;
+
+    const existingAddresses = await AddressModal.find({ user_id });
+
+    const isDefault = existingAddresses.length === 0;
+
+    const newAddress = new AddressModal({
+      name,
+      phone,
+      country,
+      city,
+      state,
+      street,
+      zip,
+      addressType,
+      user_id,
+      default: isDefault,
+    });
+
     const savedAddress = await newAddress.save();
+     // Update the user document to include the address reference in the user's address array
+     await RegisterclientModal.findByIdAndUpdate(
+      user_id,
+      { $push: { address: savedAddress._id } },  // Add the address to the user's address array
+      { new: true }
+    );
     res.status(201).json(savedAddress);
   } catch (error) {
     res.status(500).json({ error: "Failed to create address", details: error.message });
   }
 });
 
+server.put("/update-default-address", async (req, res) => {
+  const { userId, addressId } = req.body;
 
+  if (!userId || !addressId) {
+    return res.status(400).json({ message: "User ID and Address ID are required." });
+  }
+
+  try {
+    // Set all addresses of the user to `default: false`
+    await AddressModal.updateMany( { user_id: userId } , { default: false });
+
+    // Set the specified address to `default: true`
+    const updatedAddress = await AddressModal.findByIdAndUpdate(
+      addressId,
+      { default: true },
+      { new: true }
+    );
+
+    if (!updatedAddress) {
+      return res.status(404).json({ message: "Address not found." });
+    }
+
+    res.status(200).json({
+      message: "Default address updated successfully.",
+      address: updatedAddress,
+    });
+
+    await RegisterclientModal.findByIdAndUpdate(
+      userId,
+      { $set: { address: updatedAddress._id } }, // You may need to set or push the updated address ID here
+      { new: true }
+    );
+  } catch (error) {
+    console.error("Error updating default address:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+});
 
 server.get("/address/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -1664,6 +1723,11 @@ server.put("/address/:id", async (req, res) => {
     const updatedAddress = await AddressModal.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!updatedAddress) return res.status(404).json({ error: "Address not found" });
     res.status(200).json(updatedAddress);
+
+    await RegisterclientModal.updateOne(
+      { _id: updatedAddress.user_id },
+      { $set: { address: updatedAddress._id } }
+    );
   } catch (error) {
     res.status(500).json({ error: "Failed to update address", details: error.message });
   }
@@ -1679,272 +1743,122 @@ server.delete("/address/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to delete address", details: error.message });
   }
 });
-
-// server.post("/homeAddress", async (req, res) => {
-//   const { address1, address2, city, state, zip, addressType, user_id } =
-//     req.body;
-
-//   try {
-//     // Find the existing homecms document for the given user_id
-//     const existingPackage = await HomeAddressModal.findOne({ user_id });
-
-//     if (!existingPackage) {
-//       // If no existing document, create a new one
-//       const newPackage = new HomeAddressModal({
-//         address1,
-//         address2,
-//         city,
-//         state,
-//         zip,
-//         addressType,
-//         user_id,
-//       });
-
-//       // Save the new document to the database
-//       await newPackage.save();
-
-//       // Update the user's details array
-//       await RegisterclientModal.findByIdAndUpdate(
-//         user_id,
-//         { $push: { homeAddress: newPackage._id } },
-//         { new: true }
-//       );
-//     } else {
-//       // If an existing document is found, update its fields
-//       await HomeAddressModal.findOneAndUpdate(
-//         { user_id },
-//         {
-//           address1,
-//           address2,
-//           city,
-//           state,
-//           zip,
-//           addressType,
-//         },
-//         { new: true }
-//       );
-//     }
-
-//     // Send a success response
-//     res.send("Home Address added/updated successfully");
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
-
-// server.get("/homeAddress/:id", async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     const data = await RegisterclientModal.findById(id).populate("homeAddress");
-//     res.send({
-//       message: "get Address Data success",
-//       data: data,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
-
-// server.delete("/homeAddress/:id", async (req, res) => {
-//   const addressId = req.params.id;
-
-//   try {
-//     // Address exists, proceed with deletion
-//     await HomeAddressModal.findOneAndDelete(addressId);
-
-//     // Send a success response
-//     res.send("Home Address deleted successfully");
-//   } catch (error) {
-//     console.error("Error deleting home address:", error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
-
-// server.delete("/workAddress/:id", async (req, res) => {
-//   const addressId = req.params.id;
-
-//   try {
-//     // Address exists, proceed with deletion
-//     await WorkAddressModal.findOneAndDelete(addressId);
-
-//     // Send a success response
-//     res.send("work Address deleted successfully");
-//   } catch (error) {
-//     console.error("Error deleting work address:", error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
-
-// server.post("/workAddress", async (req, res) => {
-//   const { address1, address2, city, state, zip, addressType, user_id } =
-//     req.body;
-
-//   try {
-//     // Find the existing homecms document for the given user_id
-//     const existingPackage = await WorkAddressModal.findOne({ user_id });
-
-//     if (!existingPackage) {
-//       // If no existing document, create a new one
-//       const newPackage = new WorkAddressModal({
-//         address1,
-//         address2,
-//         city,
-//         state,
-//         zip,
-//         addressType,
-//         user_id,
-//       });
-
-//       // Save the new document to the database
-//       await newPackage.save();
-
-//       // Update the user's details array
-//       await RegisterclientModal.findByIdAndUpdate(
-//         user_id,
-//         { $push: { workAddress: newPackage._id } },
-//         { new: true }
-//       );
-//     } else {
-//       // If an existing document is found, update its fields
-//       await WorkAddressModal.findOneAndUpdate(
-//         { user_id },
-//         {
-//           address1,
-//           address2,
-//           city,
-//           state,
-//           zip,
-//           addressType,
-//         },
-//         { new: true }
-//       );
-//     }
-
-//     // Send a success response
-//     res.send("work Address added/updated successfully");
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
-
-// server.get("/workAddress/:id", async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     const data = await RegisterclientModal.findById(id).populate("workAddress");
-//     res.send({
-//       message: "get work Address Data success",
-//       data: data,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
-
-// server.delete("/workAddress/:id", async (req, res) => {
-//   const addressId = req.params.id;
-
-//   try {
-//     // Check if the home address exists
-//     const existingAddress = await WorkAddressModal.findOne({
-//       user_id: addressId,
-//     });
-//     if (!existingAddress) {
-//       // Address not found
-//       return res.status(404).send("Home Address not found");
-//     }
-
-//     // Address exists, proceed with deletion
-//     await WorkAddressModal.findOneAndDelete({ user_id: addressId });
-
-//     // Send a success response
-//     res.send("Home Address deleted successfully");
-//   } catch (error) {
-//     console.error("Error deleting home address:", error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
-
-//Order Section For Client
-
-
 server.post("/order", async (req, res) => {
   const {
-    image,
-    phone,
-    userName,
-    description,
-    vehicle,
+    serviceName,
     serviceCategory,
-    location,
-    orderTime,
-    pricePerHour,
-    totaltask,
-    review,
-    user_id,
+    contactDetails,
+    answersList,
+    timeDuration,
+    vehicles,
+    taskDetails,
+    taskDate,
+    taskTime,
+    taskFrequency,
+    paymentMethod,
+    taskersId,
+    hourlyRate,
+    paymentStatus,
+    totalPrice,
+    userId,
+    addressId,
   } = req.body;
 
   try {
-    // Create a new instance of AdvisorpackageModel
-    const newPackage = new OrderModal({
-      image,
-      phone,
-      userName,
-      description,
-      vehicle,
+    // Validate that the address exists and belongs to the user
+    const address = await AddressModal.findOne({ _id: addressId, userId });
+    if (!address) {
+      return res.status(400).send("Invalid address ID or address does not belong to the user.");
+    }
+
+    // Create the new order
+    const newOrder = new OrderModel({
+      serviceName,
       serviceCategory,
-      location,
-      orderTime,
-      pricePerHour,
-      totaltask,
-      review,
-      user_id,
+      contactDetails,
+      answersList,
+      timeDuration,
+      vehicles,
+      taskDetails,
+      taskDate,
+      taskTime,
+      taskFrequency,
+      paymentMethod,
+      taskersId,
+      hourlyRate,
+      paymentStatus,
+      totalPrice,
+      addressId, 
+      userId,
     });
 
-    // Save the package to the database
-    await newPackage.save();
+    // Save the order
+    const savedOrder = await newOrder.save();
 
-    // Update the user's packages array
+    // Link the order to the user's schema
     await RegisterclientModal.findByIdAndUpdate(
-      user_id,
-      { $push: { order: newPackage._id } },
+      userId,
+      { $push: { orders: savedOrder._id } },
       { new: true }
     );
 
-    // Send a success response
-    res.send("Order added");
+    res.status(201).send("Order created successfully.");
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send("Internal Server Error");
   }
 });
-//get all services
-server.get("/order", async (req, res) => {
-  try {
-    // Retrieve all service records from the database
-    const services = await OrderModal.find();
 
-    // Send the retrieved records as a response
-    res.status(200).json(services);
-  } catch (error) {
-    console.log(error);
-    res.status(500).send("Internal Server Error");
-  }
-});
-//Populate service for takser
-server.get("/order/:id", async (req, res) => {
-  const { id } = req.params;
+
+server.get("/orders", async (req, res) => {
   try {
-    const data = await RegisterclientModal.findById(id).populate("order");
-    res.send(data);
+    const orders = await OrderModel.find()
+      .populate("addressId") // Populate the address details
+      .populate("taskersId")
+      .populate("userId");
+
+    res.status(200).json(orders);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send("Internal Server Error");
   }
 });
+
+
+server.get("/orders/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const userOrders = await OrderModel.find({ userId })
+      .populate("addressId") // Populate the address details
+      .populate("taskersId");
+
+    res.status(200).json(userOrders);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+server.get("/order/:orderId", async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    const order = await OrderModel.findById(orderId)
+      .populate("taskLocation") // Populate the address details
+      .populate("taskersDetails"); // Populate taskers details
+
+    if (!order) {
+      return res.status(404).send("Order not found.");
+    }
+
+    res.status(200).json(order);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
 
 //SERVER
 //server running

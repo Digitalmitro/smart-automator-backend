@@ -24,12 +24,8 @@ const registerclientSchema = mongoose.Schema({
     type: String,
     required: true,
   },
-  zip: {
-    type: Number,
-  },
   order: [{ type: mongoose.Schema.Types.ObjectId, ref: "order" }],
-  homeAddress: [{ type: mongoose.Schema.Types.ObjectId, ref: "homeAddress" }],
-  workAddress: [{ type: mongoose.Schema.Types.ObjectId, ref: "workAddress" }],
+  address: [{ type: mongoose.Schema.Types.ObjectId, ref: "address" }],
 });
 
 // Hashing Passwords

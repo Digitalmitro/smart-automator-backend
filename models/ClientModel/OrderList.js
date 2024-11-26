@@ -1,52 +1,31 @@
 const mongoose = require("mongoose");
 
-const orderSchema = mongoose.Schema({
-  image: {
-    type: String,
-  },
-  phone: {
-    type: String,
-    required: true,
-  },
-  userName: {
-    type: String,
-    required: true,
-  },
-  description: {
-    type: String,
-    required: true,
-  },
-  vehicle: {
-    type: String,
-  },
-  serviceCategory: {
-    type: String,
-    required: true,
-  },
-  location: {
-    type: String,
-  },
-  orderTime: {
-    type: String,
-  },
-  pricePerHour: {
-    type: Number,
-  },
-  totaltask: {
-    type: Number,
-  },
-  review: [
+const OrderSchema = new mongoose.Schema({
+  serviceName: { type: String, required: true },
+  serviceCategory: { type: String, required: true },
+  contactDetails: { type: Number, required: true },
+  taskLocation: { type: String, required: true },
+  answersList: [
     {
-      type: String,
+      question: { type: String, required: true },
+      answer: { type: String, required: true },
     },
   ],
-  user_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "register client",
-    required: true,
-  },
+  vehicles: { type: Boolean },
+  taskDetails: { type: String, required: true },
+  taskDate: { type: Date, required: true },
+  taskTime: { type: String, required: true },
+  timeDuration: { type: String, required: true },
+  taskFrequency: { type: String },
+  paymentMethod: { type: String, required: true },
+  hourlyRate: { type: Number, required: true },
+  paymentStatus: { type: String, enum: ["Pending", "Completed"], default: "Pending" },
+  totalPrice: { type: Number, required: true },
+  taskersId: { type: mongoose.Schema.Types.ObjectId, ref: "tasker" },
+  addressId: { type: mongoose.Schema.Types.ObjectId, ref: "address", required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
 });
 
-const OrderModal = mongoose.model("order", orderSchema);
+const OrderModel = mongoose.model("Order", OrderSchema);
 
-module.exports = { OrderModal };
+module.exports = OrderModel;

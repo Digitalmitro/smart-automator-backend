@@ -39,7 +39,7 @@ const taskerserviceSchema = mongoose.Schema({
   ],
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "register tasker",
+    ref: "tasker",
     required: true,
   },
 });

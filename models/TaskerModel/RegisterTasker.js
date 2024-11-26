@@ -53,7 +53,7 @@ registertaskerSchema.methods.generateAuthToken = async function () {
 };
 
 const RegistertaskerModal = mongoose.model(
-  "register tasker",
+  "tasker",
   registertaskerSchema
 );
 
