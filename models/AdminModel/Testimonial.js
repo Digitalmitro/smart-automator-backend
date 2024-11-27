@@ -10,6 +10,6 @@ const testimonialSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-const testimonialModel = mongoose.model("testimonial", testimonialSchema);
+const Testimonial = mongoose.model("testimonial", testimonialSchema);
 
-module.exports = testimonialModel;
+module.exports = Testimonial;

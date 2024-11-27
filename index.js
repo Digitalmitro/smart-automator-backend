@@ -28,6 +28,7 @@ const uploadS3 = require("./middlewares/uploadS3");
 const CmsModel = require("./models/AdminModel/CMS");
 const BlogModel = require("./models/AdminModel/Blog");
 const OrderModel = require("./models/ClientModel/OrderList");
+const Testimonial = require("./models/AdminModel/Testimonial");
 server.use(cors());
 server.use(express.json());
 const Port = process.env.port || 3500;
@@ -745,7 +746,6 @@ server.get("/blog/:id", async (req, res) => {
 });
 
 server.get("/get-blogs", async (req, res) => {
-
   try {
     // Find blog by ID
     const blogs = await BlogModel.find({}).limit(3);
@@ -833,6 +833,103 @@ server.get("/admin/blogs", adminAuth, async (req, res) => {
     });
   }
 });
+
+// TESTIMONIALS >>>
+
+// Add a new testimonial
+server.post("/add-testimonial", adminAuth, async (req, res) => {
+  try {
+    const { title, description, active, image } = req.body;
+
+    const newTestimonial = new Testimonial({
+      title,
+      description,
+      image,
+    });
+
+    await newTestimonial.save();
+
+    res.status(201).json({
+      message: "Testimonial added successfully",
+      success: true,
+      testimonial: newTestimonial,
+    });
+  } catch (error) {
+    console.error("Error adding testimonial:", error);
+    res.status(500).json({ message: "Internal Server Error", success: false });
+  }
+});
+
+// Edit a testimonial
+server.put("/edit-testimonial/:id", adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, active, image } = req.body;
+
+    const updatedTestimonial = await Testimonial.findByIdAndUpdate(
+      id,
+      { title, description, active, image },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedTestimonial) {
+      return res.status(404).json({
+        message: "Testimonial not found",
+        success: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Testimonial updated successfully",
+      success: true,
+      testimonial: updatedTestimonial,
+    });
+  } catch (error) {
+    console.error("Error updating testimonial:", error);
+    res.status(500).json({ message: "Internal Server Error", success: false });
+  }
+});
+
+// Delete a testimonial
+server.delete("/delete-testimonial/:id", adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedTestimonial = await Testimonial.findByIdAndDelete(id);
+
+    if (!deletedTestimonial) {
+      return res.status(404).json({
+        message: "Testimonial not found",
+        success: false,
+      });
+    }
+
+    res.status(200).json({
+      message: "Testimonial deleted successfully",
+      success: true,
+    });
+  } catch (error) {
+    console.error("Error deleting testimonial:", error);
+    res.status(500).json({ message: "Internal Server Error", success: false });
+  }
+});
+
+// Get all testimonials
+server.get("/get-testimonials", async (req, res) => {
+  try {
+    const testimonials = await Testimonial.find().sort({ createdAt: -1 }); // Sort by most recent
+
+    res.status(200).json({
+      message: "Testimonials fetched successfully",
+      success: true,
+      testimonials,
+    });
+  } catch (error) {
+    console.error("Error fetching testimonials:", error);
+    res.status(500).json({ message: "Internal Server Error", success: false });
+  }
+});
+// <<<< TESTIMONIALS
 
 //Tasker Section
 // Tasker Register//
@@ -1660,10 +1757,19 @@ server.put("/updateclient", userAuth, async (req, res) => {
   }
 });
 
-
 server.post("/address", async (req, res) => {
   try {
-    const { name, phone, country, city, state, street, zip, addressType, user_id } = req.body;
+    const {
+      name,
+      phone,
+      country,
+      city,
+      state,
+      street,
+      zip,
+      addressType,
+      user_id,
+    } = req.body;
 
     const existingAddresses = await AddressModal.find({ user_id });
 
@@ -1683,15 +1789,17 @@ server.post("/address", async (req, res) => {
     });
 
     const savedAddress = await newAddress.save();
-     // Update the user document to include the address reference in the user's address array
-     await RegisterclientModal.findByIdAndUpdate(
+    // Update the user document to include the address reference in the user's address array
+    await RegisterclientModal.findByIdAndUpdate(
       user_id,
-      { $push: { address: savedAddress._id } },  // Add the address to the user's address array
+      { $push: { address: savedAddress._id } }, // Add the address to the user's address array
       { new: true }
     );
     res.status(201).json(savedAddress);
   } catch (error) {
-    res.status(500).json({ error: "Failed to create address", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to create address", details: error.message });
   }
 });
 
@@ -1699,12 +1807,14 @@ server.put("/update-default-address", async (req, res) => {
   const { userId, addressId } = req.body;
 
   if (!userId || !addressId) {
-    return res.status(400).json({ message: "User ID and Address ID are required." });
+    return res
+      .status(400)
+      .json({ message: "User ID and Address ID are required." });
   }
 
   try {
     // Set all addresses of the user to `default: false`
-    await AddressModal.updateMany( { user_id: userId } , { default: false });
+    await AddressModal.updateMany({ user_id: userId }, { default: false });
 
     // Set the specified address to `default: true`
     const updatedAddress = await AddressModal.findByIdAndUpdate(
@@ -1737,30 +1847,45 @@ server.get("/address/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const addresses = await AddressModal.find({ user_id: userId }).populate("user_id", "name email");
+    const addresses = await AddressModal.find({ user_id: userId }).populate(
+      "user_id",
+      "name email"
+    );
     res.status(200).json(addresses);
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch addresses", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch addresses", details: error.message });
   }
 });
 
 // Get Address By ID
 server.get("/address/:id", async (req, res) => {
   try {
-    const address = await AddressModal.findById(req.params.id).populate("user_id", "name email");
+    const address = await AddressModal.findById(req.params.id).populate(
+      "user_id",
+      "name email"
+    );
     if (!address) return res.status(404).json({ error: "Address not found" });
     res.status(200).json(address);
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch address", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch address", details: error.message });
   }
 });
 
 // Update Address
 server.put("/address/:id", async (req, res) => {
   try {
-    console.log(req.body)
-    const updatedAddress = await AddressModal.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updatedAddress) return res.status(404).json({ error: "Address not found" });
+    console.log(req.body);
+    const updatedAddress = await AddressModal.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!updatedAddress)
+      return res.status(404).json({ error: "Address not found" });
     res.status(200).json(updatedAddress);
 
     await RegisterclientModal.updateOne(
@@ -1768,7 +1893,9 @@ server.put("/address/:id", async (req, res) => {
       { $set: { address: updatedAddress._id } }
     );
   } catch (error) {
-    res.status(500).json({ error: "Failed to update address", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to update address", details: error.message });
   }
 });
 
@@ -1776,10 +1903,13 @@ server.put("/address/:id", async (req, res) => {
 server.delete("/address/:id", async (req, res) => {
   try {
     const deletedAddress = await AddressModal.findByIdAndDelete(req.params.id);
-    if (!deletedAddress) return res.status(404).json({ error: "Address not found" });
+    if (!deletedAddress)
+      return res.status(404).json({ error: "Address not found" });
     res.status(200).json({ message: "Address deleted successfully" });
   } catch (error) {
-    res.status(500).json({ error: "Failed to delete address", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to delete address", details: error.message });
   }
 });
 server.post("/order", async (req, res) => {
@@ -1807,7 +1937,9 @@ server.post("/order", async (req, res) => {
     // Validate that the address exists and belongs to the user
     const address = await AddressModal.findOne({ _id: addressId, userId });
     if (!address) {
-      return res.status(400).send("Invalid address ID or address does not belong to the user.");
+      return res
+        .status(400)
+        .send("Invalid address ID or address does not belong to the user.");
     }
 
     // Create the new order
@@ -1827,7 +1959,7 @@ server.post("/order", async (req, res) => {
       hourlyRate,
       paymentStatus,
       totalPrice,
-      addressId, 
+      addressId,
       userId,
     });
 
@@ -1848,7 +1980,6 @@ server.post("/order", async (req, res) => {
   }
 });
 
-
 server.get("/orders", async (req, res) => {
   try {
     const orders = await OrderModel.find()
@@ -1862,7 +1993,6 @@ server.get("/orders", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
 
 server.get("/orders/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -1897,7 +2027,6 @@ server.get("/order/:orderId", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
 
 //SERVER
 //server running
