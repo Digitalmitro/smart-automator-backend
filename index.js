@@ -724,6 +724,45 @@ server.get("/admin/blog/:id", adminAuth, async (req, res) => {
   }
 });
 
+server.get("/blog/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Find blog by ID
+    const blog = await BlogModel.findById(id);
+
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    res.status(200).json({ message: "Blog fetched successfully", blog });
+  } catch (error) {
+    console.error("Error fetching blog by ID:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch blog", error: error.message });
+  }
+});
+
+server.get("/get-blogs", async (req, res) => {
+
+  try {
+    // Find blog by ID
+    const blogs = await BlogModel.find({}).limit(3);
+
+    if (!blogs.length) {
+      return res.status(404).json({ message: "Blogs not found" });
+    }
+
+    res.status(200).json({ message: "Blogs fetched successfully", blogs });
+  } catch (error) {
+    console.error("Error fetching blog by ID:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch blog", error: error.message });
+  }
+});
+
 server.delete("/admin/delete-blog/:id", adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
