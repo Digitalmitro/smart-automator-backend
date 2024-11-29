@@ -4,7 +4,7 @@ const testimonialSchema = mongoose.Schema(
   {
     title: String,
     description: String,
-    active: {type: Boolean, default: false},
+    active: {type: Boolean, default: true},
     image: String,
   },
   { timestamps: true }

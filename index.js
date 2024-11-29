@@ -29,6 +29,8 @@ const CmsModel = require("./models/AdminModel/CMS");
 const BlogModel = require("./models/AdminModel/Blog");
 const OrderModel = require("./models/ClientModel/OrderList");
 const Testimonial = require("./models/AdminModel/Testimonial");
+const PricingPlan = require("./models/AdminModel/Plan");
+
 server.use(cors());
 server.use(express.json());
 const Port = process.env.port || 3500;
@@ -837,9 +839,9 @@ server.get("/admin/blogs", adminAuth, async (req, res) => {
 // TESTIMONIALS >>>
 
 // Add a new testimonial
-server.post("/add-testimonial", adminAuth, async (req, res) => {
+server.post("/admin/add-testimonial", adminAuth, async (req, res) => {
   try {
-    const { title, description, active, image } = req.body;
+    const { title, description, image } = req.body;
 
     const newTestimonial = new Testimonial({
       title,
@@ -914,8 +916,30 @@ server.delete("/delete-testimonial/:id", adminAuth, async (req, res) => {
   }
 });
 
+server.get("/get-testimonial/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Find blog by ID
+    const testimonial = await Testimonial.findById(id);
+
+    if (!testimonial) {
+      return res.status(404).json({ message: "Testimonial not found" });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Testimonial fetched successfully", testimonial });
+  } catch (error) {
+    console.error("Error fetching testimonial by ID:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch testimonial", error: error.message });
+  }
+});
+
 // Get all testimonials
-server.get("/get-testimonials", async (req, res) => {
+server.get("/admin/get-testimonials", async (req, res) => {
   try {
     const testimonials = await Testimonial.find().sort({ createdAt: -1 }); // Sort by most recent
 
@@ -929,7 +953,100 @@ server.get("/get-testimonials", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error", success: false });
   }
 });
+
+server.get("/get-testimonials", async (req, res) => {
+  try {
+    const testimonials = await Testimonial.find({ active: true });
+    res.status(200).json({
+      message: "Testimonials fetched successfully",
+      success: true,
+      testimonials,
+    });
+  } catch (error) {
+    console.error("Error fetching testimonials:", error);
+    res.status(500).json({ message: "Internal Server Error", success: false });
+  }
+});
 // <<<< TESTIMONIALS
+
+// PLANS API >>>
+
+// Add a new plan
+server.post("/add-plan", adminAuth, async (req, res) => {
+  const errors = validatePricingPlan(req.body);
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+
+  try {
+    const newPlan = new PricingPlan(req.body);
+    const savedPlan = await newPlan.save();
+    res.status(201).json(savedPlan);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Edit a plan by ID
+server.put("/edit-plan/:id", adminAuth, async (req, res) => {
+  const errors = validatePricingPlan(req.body);
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+
+  try {
+    const updatedPlan = await PricingPlan.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+      }
+    );
+    if (!updatedPlan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+    res.status(200).json(updatedPlan);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a plan by ID
+server.delete("/delete-plan/:id", adminAuth, async (req, res) => {
+  try {
+    const deletedPlan = await PricingPlan.findByIdAndDelete(req.params.id);
+    if (!deletedPlan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+    res.status(200).json({ message: "Plan deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all plans
+server.get("/get-all-plans", adminAuth, async (req, res) => {
+  try {
+    const plans = await PricingPlan.find();
+    res.status(200).json(plans);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get a plan by ID
+server.get("/get-plan/:id", adminAuth, async (req, res) => {
+  try {
+    const plan = await PricingPlan.findById(req.params.id);
+    if (!plan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+    res.status(200).json(plan);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// <<< PLANS API
 
 //Tasker Section
 // Tasker Register//
