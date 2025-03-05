@@ -20,6 +20,7 @@ const serviceCategorySchema = mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  
 });
 
 const ServiceCategory = mongoose.model(

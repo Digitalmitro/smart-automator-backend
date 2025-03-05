@@ -45,7 +45,7 @@ const ServiceSchema = new mongoose.Schema({
     default: false,
   },
   hourlyCharge: {
-    type: Number,
+    type: String,
     required: true,
   },
   serviceCategory: {
@@ -53,6 +53,8 @@ const ServiceSchema = new mongoose.Schema({
     ref: "ServiceCategories",
     required: true,
   },
+  features:[{type:String}],
+  projectTime:{type: String}
 });
 
 module.exports = mongoose.model("Service", ServiceSchema);
