@@ -1281,7 +1281,7 @@ server.get("/home-cms", async (req, res) => {
       })
       .populate({
         path: "homePage.blogs", // Path to the 'blogs' field in homePage
-        select: "title shortDescription images", // Only select these fields
+        select: "title shortDescription images slug", // Only select these fields
       });
 
     return res.status(200).json({
